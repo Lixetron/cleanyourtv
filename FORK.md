@@ -16,7 +16,9 @@ plus the weather line under the clock.
   It opens over the real Home, so the cards stand where they will.
 - `INTERNET`, `ACCESS_COARSE_LOCATION`; `ACCESS_FINE_LOCATION` is granted by the install script.
 - `personal/theme-widgets`: the dock, five columns, the static aurora wallpaper, `power_on_home` on,
-  `show_stats` off (the weather line takes that place).
+  `show_stats` off (the weather line takes that place), `icon_only_buttons` and `wifi_status_color`.
+- The Wi-Fi pill turns green while the TV is online and stays white when it is not, and the connected
+  network's name sits in green above the pills, on the greeting's line (`wifiName`).
 
 Everything else is upstream. The launcher still has no background services and no polling; the
 network is read only while a weather card or the weather line is on screen.

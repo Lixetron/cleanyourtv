@@ -191,6 +191,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** config show_inputs_pill: false keeps the Inputs pill hidden even when the TV has inputs. */
     private boolean showInputsPill = true;
     private TextView btnWifi;
+    /** The connected Wi-Fi network's name above the pills, at the greeting's line. */
+    private TextView wifiName;
     /** The network pill's icon as last set, so a refresh that changes nothing does not lay the top bar out again. */
     private int wifiIcon;
     /** The pills have been filled in once; later resumes refresh them after the first frame. */
@@ -577,6 +579,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             clockRow.addOnLayoutChangeListener(centerGreeting);
         }
         btnWifi = findViewById(R.id.btnWifi);
+        wifiName = findViewById(R.id.wifiName);
         shamsiDate = findViewById(R.id.shamsiDate);
         stats = findViewById(R.id.stats);
         raceCalendar = cfg.raceCalendar;
@@ -2996,6 +2999,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // signal, Ethernet burns steady at 4.
         int flame = 0;
         boolean steady = false;
+        String ssidName = null;
+        boolean wifiConnected = false;
         try {
             ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
             boolean wifi = false, ethernet = false;
@@ -3023,16 +3028,30 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 flame = 4;
                 steady = true;
             } else if (wifi) {
+                wifiConnected = true;
                 WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
                 WifiInfo info = wm != null ? wm.getConnectionInfo() : null;
                 String ssid = info != null ? info.getSSID() : null;
                 flame = info != null ? Math.max(1, Math.min(4, WifiManager.calculateSignalLevel(info.getRssi(), 5))) : 3;
                 if (ssid != null) {
                     ssid = ssid.replace("\"", "").trim();
-                    if (!ssid.isEmpty() && !ssid.contains("unknown") && !ssid.equals("0x")) text = ssid;
+                    if (!ssid.isEmpty() && !ssid.contains("unknown") && !ssid.equals("0x")) {
+                        text = ssid;
+                        ssidName = ssid;
+                    }
                 }
             }
         } catch (Exception ignored) {
+        }
+        // The network's name above the pills, green like the Wi-Fi icon (wifi_status_color). Hidden while
+        // the TV is offline or on Ethernet.
+        if (wifiName != null) {
+            if (wifiConnected && ssidName != null) {
+                wifiName.setText(ssidName);
+                wifiName.setVisibility(View.VISIBLE);
+            } else {
+                wifiName.setVisibility(View.GONE);
+            }
         }
         // With a VPN app configured, a VPN that is down matters too: show a red "VPN off" capsule then.
         boolean vpnDown = !vpn && online && !vpnApp.isEmpty();
