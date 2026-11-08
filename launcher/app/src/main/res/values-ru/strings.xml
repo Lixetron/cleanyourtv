@@ -104,6 +104,7 @@
     <string name="dock_edit_pick_place">Выберите место в доке для этого приложения и нажмите ОК. Назад — отмена.</string>
     <string name="reorder">Изменить порядок приложений</string>
     <string name="tile_move">Переместить</string>
+    <string name="move_hint">Стрелки — переместить, ОК или Назад — поставить.</string>
     <string name="reorder_hint">ОК — взять приложение, стрелки — переместить, Назад — поставить. Ещё раз Назад — готово.</string>
     <string name="reorder_not_saved">Не удалось сохранить новый порядок</string>
     <string name="app_library">Библиотека приложений</string>
@@ -156,4 +157,7 @@
     <string name="clock_format_system">Системные</string>
     <string name="clock_format_12">12-часовой</string>
     <string name="clock_format_24">24-часовой</string>
+    <string name="screensaver_time_label">Заставка часов</string>
+    <string name="screensaver_time_state">Заставка часов: %1$s</string>
+    <string name="screensaver_minutes">%1$d мин</string>
 </resources>

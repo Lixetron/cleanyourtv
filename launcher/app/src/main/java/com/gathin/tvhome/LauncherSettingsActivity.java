@@ -36,6 +36,9 @@ public final class LauncherSettingsActivity extends Activity {
     private final TextView[] dockChoices = new TextView[DOCK_OPACITIES.length];
     private static final String[] CLOCK_FORMATS = {"system", "12", "24"};
     private final TextView[] clockChoices = new TextView[CLOCK_FORMATS.length];
+    /** Minutes of no input on Home before the clock screensaver, plus Off; shown as one choice row. */
+    private static final int[] IDLE_CLOCK_CHOICES = {0, 1, 2, 5, 10, 15, 20, 30, 60};
+    private TextView screensaverChoice;
     private TextView wallpaperChoice;
     private TextView animationsChoice;
     private TextView advancedChoice;
@@ -45,6 +48,7 @@ public final class LauncherSettingsActivity extends Activity {
     private int rowsBelowDock;
     private int dockOpacity;
     private String clockFormat;
+    private int idleClockMinutes;
     private boolean animations;
     private boolean advancedEffects;
 
@@ -68,6 +72,7 @@ public final class LauncherSettingsActivity extends Activity {
         rowsBelowDock = config.rowsBelowDock;
         dockOpacity = config.dockOpacity;
         clockFormat = config.clockFormat;
+        idleClockMinutes = config.homeIdleClockMinutes;
         animations = config.animations;
         advancedEffects = config.animations && config.advancedEffects;
 
@@ -119,6 +124,8 @@ public final class LauncherSettingsActivity extends Activity {
                 refresh();
             });
         }
+        screensaverChoice = findViewById(R.id.screensaverChoice);
+        screensaverChoice.setOnClickListener(v -> showScreensaverPicker());
         // Mirror text alignment without globally opting the launcher into RTL. Numeric rows
         // still need explicit ordering in Android's no-supportsRtl compatibility mode.
         if (getResources().getBoolean(R.bool.rtl_menu_bar))
@@ -163,12 +170,14 @@ public final class LauncherSettingsActivity extends Activity {
             if (!hasOnTvChoices()) return;
             choices.edit().remove("columns").remove(Config.ROWS_BELOW_DOCK_KEY).remove("animations")
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY)
-                    .remove(Config.DOCK_OPACITY_KEY).remove(Config.CLOCK_FORMAT_KEY).remove(OpenOnStart.KEY).commit();
+                    .remove(Config.DOCK_OPACITY_KEY).remove(Config.CLOCK_FORMAT_KEY)
+                    .remove(Config.IDLE_CLOCK_MINUTES_KEY).remove(OpenOnStart.KEY).commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
             dockOpacity = current.dockOpacity;
             clockFormat = current.clockFormat;
+            idleClockMinutes = current.homeIdleClockMinutes;
             animations = current.animations;
             advancedEffects = current.animations && current.advancedEffects;
             changed();
@@ -223,6 +232,35 @@ public final class LauncherSettingsActivity extends Activity {
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
+    }
+
+    /** Off, or a few idle times; the setting Home uses for its own clock (home_idle_clock_minutes). */
+    private void showScreensaverPicker() {
+        String[] labels = new String[IDLE_CLOCK_CHOICES.length];
+        int checked = -1;
+        for (int i = 0; i < IDLE_CLOCK_CHOICES.length; i++) {
+            int minutes = IDLE_CLOCK_CHOICES[i];
+            labels[i] = minutes == 0 ? getString(R.string.off)
+                    : getString(R.string.screensaver_minutes, minutes);
+            if (minutes == idleClockMinutes) checked = i;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.screensaver_time_label)
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    dialog.dismiss();
+                    idleClockMinutes = IDLE_CLOCK_CHOICES[which];
+                    choices.edit().putInt(Config.IDLE_CLOCK_MINUTES_KEY, idleClockMinutes).apply();
+                    changed();
+                    refresh();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /** Off, or the saved number of idle minutes, for the settings row. */
+    private String idleClockLabel() {
+        return idleClockMinutes == 0 ? getString(R.string.off)
+                : getString(R.string.screensaver_minutes, idleClockMinutes);
     }
 
     /** Off, then every app with a TV entry point by name. Saved at once; it is read on the next boot. */
@@ -311,6 +349,7 @@ public final class LauncherSettingsActivity extends Activity {
         for (int i = 0; i < clockChoices.length; i++) {
             clockChoices[i].setSelected(CLOCK_FORMATS[i].equals(clockFormat));
         }
+        screensaverChoice.setText(getString(R.string.screensaver_time_state, idleClockLabel()));
         animationsChoice.setText(getString(R.string.animations_state,
                 getString(animations ? R.string.on : R.string.off)));
         advancedChoice.setText(getString(R.string.advanced_effects_state,
@@ -330,7 +369,8 @@ public final class LauncherSettingsActivity extends Activity {
         return choices.contains("columns") || choices.contains(Config.ROWS_BELOW_DOCK_KEY)
                 || choices.contains("animations") || choices.contains("advanced_effects")
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains(Config.DOCK_OPACITY_KEY)
-                || choices.contains(Config.CLOCK_FORMAT_KEY) || choices.contains(OpenOnStart.KEY);
+                || choices.contains(Config.CLOCK_FORMAT_KEY) || choices.contains(Config.IDLE_CLOCK_MINUTES_KEY)
+                || choices.contains(OpenOnStart.KEY);
     }
 
     private void open(Intent intent) {

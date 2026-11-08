@@ -393,9 +393,21 @@ public final class Widgets {
             fetch();
         }
 
+        /**
+         * Stops the minute refresh and the network fetch but leaves the cards on screen: Home stays visible
+         * behind a translucent panel, such as the TV's own settings, and its cards must not vanish there.
+         */
         public void stop() {
             running = false;
             handler.removeCallbacksAndMessages(null);
+        }
+
+        /**
+         * Hides the cards as well. Only the cards editor needs this: it is translucent over Home and draws
+         * its own cards, so Home's would show through as a double.
+         */
+        public void hide() {
+            stop();
             layer.setVisibility(View.INVISIBLE);
         }
 

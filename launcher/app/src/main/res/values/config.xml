@@ -198,6 +198,13 @@
          reach InputKeyService. Leave empty to omit. -->
     <integer-array name="input_key_keycodes">
     </integer-array>
+    <!-- Remote buttons that, while Home is in front, open Home's Inputs menu when held: a tap keeps opening
+         Live TV, a hold (500 ms) shows the Inputs dropdown. By Android keycode. The Xiaomi MI/PatchWall
+         button (XMRM-007) sends 191, KEYCODE_BUTTON_4, and opens the last source once PatchWall is gone.
+         A theme can set the same list. Leave empty to omit. -->
+    <integer-array name="hold_input_keycodes" translatable="false">
+        <item>191</item>
+    </integer-array>
     <!-- Answer the system input switcher (com.android.tv.action.VIEW_INPUTS) with the Inputs menu. For TVs whose
          stock launcher was the only handler of that action, so the remote's Input button does nothing once the
          stock launcher is disabled even with InputKeyService on (Hisense huangshan, Android TV 10: no
@@ -429,8 +436,9 @@
     <bool name="app_library_selection">false</bool>
     <!-- OK opens every app in the library, not only the apps on Home: for a library that holds the apps a theme
          keeps off Home with hidden_apps. Hold OK still offers Add to Home. app_library_selection wins when both are
-         on. Off by default; a theme can set "library_ok_opens": true (also needs app_library). -->
-    <bool name="library_ok_opens">false</bool>
+         on. On in this fork: a press opens the app, a hold opens its options. Off upstream by default; a theme can
+         set "library_ok_opens": true (also needs app_library). -->
+    <bool name="library_ok_opens">true</bool>
 
     <!-- Apps pre-seeded into the App library's "added" set at startup (config.xml library_apps, or a theme's
          config.json). They show on Home as if the owner had added them in the App library UI, and stay

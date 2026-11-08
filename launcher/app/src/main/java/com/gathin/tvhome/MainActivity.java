@@ -193,6 +193,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private TextView btnWifi;
     /** The connected Wi-Fi network's name above the pills, at the greeting's line. */
     private TextView wifiName;
+    /** Whether wifiName carries the VPN shield, so a refresh that changes nothing does not reset its drawables. */
+    private boolean wifiNameVpn;
     /** The network pill's icon as last set, so a refresh that changes nothing does not lay the top bar out again. */
     private int wifiIcon;
     /** The pills have been filled in once; later resumes refresh them after the first frame. */
@@ -330,6 +332,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      * reach Home after onPause, when that key opened another app, and must not start the clock over the app.
      */
     private boolean resumed;
+    /**
+     * The same for InputKeyService, which runs in this process: on Home the remote's Live TV/Input button opens
+     * Home's own Inputs menu when held, and elsewhere it keeps the firmware's behaviour.
+     */
+    private static volatile boolean inFront;
     /** Rebuild the tiles on the way back to Home only when apps changed meanwhile (TileRefresh). */
     private final TileRefresh tileRefresh = new TileRefresh();
     /** PackageManager's change counter at the last rebuild, to catch a package broadcast that never arrived. */
@@ -338,6 +345,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private PopupWindow openPopup;
     /** Reorder mode is on (top-bar button). */
     private boolean reordering;
+    /**
+     * A reorder session started from the tile menu's Move, not from Reorder apps: it ends as soon as that one app is
+     * placed, so Home goes back to a press opening the app and a hold opening its menu.
+     */
+    private boolean moveOneShot;
     /** Key of the tile being carried in reorder mode, or null. */
     private String movingKey;
     /** Tile order when reorder mode started, to save only when something moved. */
@@ -695,7 +707,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
         if (dockRow) grid.addItemDecoration(new DockDecoration(COLUMNS, density, cinematic, cfg.alwaysShowNames, cfg.dockOpacity, cfg.dockGlass, cfg.dockEvenPadding, cfg.dockBand,
                 singleRow, cfg.dockBandAll));
-        if (cfg.fadeRows) TopFade.attach(grid, 48 * density);
+        if (cfg.fadeRows) TopFade.attach(grid, 80 * density);
         // Reduced motion: the tiles are simply there, with no entrance (reloadApps skips it there too).
         if (animations && !reducedMotion) {
             grid.setLayoutAnimation(new LayoutAnimationController(
@@ -1003,13 +1015,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         return s;
     }
 
-    /** The cards ride up with the grid as it scrolls to the rows under the dock, and fade. */
+    /**
+     * The cards ride up with the grid as it scrolls to the rows under the dock, and fade. The fade is short on
+     * purpose: the cards sit almost level with the header, so a slower one let them drift over the clock and the
+     * pill row before they were gone.
+     */
     private void followWidgets(RecyclerView rv) {
         if (widgets == null) return;
         float off = Math.max(0, rv.computeVerticalScrollOffset());
         View layer = widgets.view();
         layer.setTranslationY(-off);
-        layer.setAlpha(Math.max(0f, 1f - off / (140 * density)));
+        layer.setAlpha(Math.max(0f, 1f - off / (50 * density)));
     }
 
     /** The weather under the clock: the last reading at once, a fresh one in the background when it is stale. */
@@ -1146,6 +1162,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     protected void onResume() {
         super.onResume();
         resumed = true;
+        inFront = true;
         // A festival that started or ended while Home was in the background: rebuild with or without it.
         if (festive != festival.active(LocalDate.now())) {
             recreate();
@@ -1222,7 +1239,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == LAUNCHER_SETTINGS_REQUEST && resultCode == RESULT_OK && data != null
                 && data.getBooleanExtra(LauncherSettingsActivity.EXTRA_WIDGETS, false)) {
-            // Settings are closed, so the editor's translucent window has the real Home beneath it.
+            // Settings are closed, so the editor's translucent window has the real Home beneath it. Home's
+            // own cards go away for it: the editor draws the cards itself, and a second set would show through.
+            if (widgets != null) widgets.hide();
             startActivity(new Intent(this, WidgetSettingsActivity.class));
             return;
         }
@@ -1370,6 +1389,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     protected void onPause() {
         super.onPause();
         resumed = false;
+        inFront = false;
         if (widgets != null) widgets.stop();
         // No UP reaches a paused Home, so a vendor-key hold it saw go down would still open its app later.
         // Only Home's own share is dropped: a key service that saw the same DOWN keeps its hold.
@@ -1394,6 +1414,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (cardPrompt != null) cardPrompt.dismiss();
         if (appLibrary != null) appLibrary.close();
         if (openPopup != null) openPopup.dismiss();
+    }
+
+    /** For InputKeyService: Home is the resumed activity right now. */
+    static boolean inFront() {
+        return inFront;
     }
 
     @Override
@@ -1580,6 +1605,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** The start shared by reorder and edit-dock mode. False when there is nothing to move. */
     private boolean beginReorder() {
         if (adapter.movableCount() < 2) return false;
+        moveOneShot = false;
         // Before the reload below: once it has dropped the empty slots, the dock row also shows grid apps.
         dockInSession = new HashSet<>();
         dockedAtStart = adapter.dockFilled();
@@ -1701,10 +1727,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         dimOthers();
     }
 
-    /** Puts the carried tile down where it is; the mode stays on. */
+    /** Puts the carried tile down; the mode stays on, except after the tile menu's Move: that app was the one to place. */
     private void drop() {
         movingKey = null;
         dimOthers();
+        if (moveOneShot) {
+            moveOneShot = false;
+            endReorder();   // saves the order and turns Home back to its normal press and hold
+        }
     }
 
     /** While a tile is carried, every other tile is dimmed so the carried one stands out; otherwise all are full. */
@@ -1730,6 +1760,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         dockEditing = false;
         dockEditSlot = -1;
         dockEditAppKey = null;
+        // Before drop(): a one-shot Move ends here either way, and drop() must not call back into this.
+        moveOneShot = false;
         drop();
         reordering = false;
         adapter.setReordering(false);
@@ -3048,6 +3080,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (wifiName != null) {
             if (wifiConnected && ssidName != null) {
                 wifiName.setText(ssidName);
+                // While a VPN is up, a small shield before the name shows that the traffic goes through it.
+                if (wifiNameVpn != vpn) {
+                    wifiNameVpn = vpn;
+                    wifiName.setCompoundDrawablesRelativeWithIntrinsicBounds(vpn ? R.drawable.ic_vpn : 0, 0, 0, 0);
+                }
                 wifiName.setVisibility(View.VISIBLE);
             } else {
                 wifiName.setVisibility(View.GONE);
@@ -3920,10 +3957,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (position < adapter.movableCount()) addSettingsMenuRow(rows, popup, R.string.tile_move, () -> {
             if (!beginReorder()) return;
             int at = adapter.positionOf(key);   // beginReorder can rebuild the tiles
-            if (at < 0) return;
+            if (at < 0) {
+                endReorder();   // the app went away while the menu was open
+                return;
+            }
             focusTile(at);
             pickUp(at);
-            Toast.makeText(this, R.string.reorder_hint, Toast.LENGTH_LONG).show();
+            moveOneShot = true;   // placing this app ends the mode, as the menu's Move is for this one app
+            Toast.makeText(this, R.string.move_hint, Toast.LENGTH_LONG).show();
         });
         if (appLibraryEnabled) addSettingsMenuRow(rows, popup, R.string.library_remove_shortcut, () -> {
             if (LibraryApps.save(this, pkg, false)) reloadApps(false);

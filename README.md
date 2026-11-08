@@ -452,7 +452,8 @@ The launcher just lists what is installed and launches it with intents that have
 
 Hold OK on **Settings** (top right) and choose **Reorder apps**. OK picks an app up, the arrows move it,
 Back places it, and Back again finishes. Holding OK on a tile also offers **Move** (`tile_menu`, on by default), which
-picks that app up straight away. More: [docs/launcher.md](docs/launcher.md#launcher-settings-and-the-default-home)
+picks that app up straight away; placing it ends the mode, so a press opens apps and a hold opens the menu again.
+More: [docs/launcher.md](docs/launcher.md#launcher-settings-and-the-default-home)
 
 </details>
 

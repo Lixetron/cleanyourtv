@@ -97,6 +97,7 @@
     <string name="dock_edit_pick_place">בחרו מקום בשורת המועדפים לאפליקציה הזו ולחצו אישור. חזרה לביטול.</string>
     <string name="reorder">סידור אפליקציות</string>
     <string name="tile_move">העברה</string>
+    <string name="move_hint">החצים מזיזים את האפליקציה, אישור או חזרה מניחים אותה.</string>
     <string name="reorder_hint">אישור מרים אפליקציה, החצים מזיזים אותה, חזרה מניחה אותה. חזרה שוב לסיום.</string>
     <string name="reorder_not_saved">לא ניתן לשמור את הסדר החדש</string>
     <string name="app_library">ספריית אפליקציות</string>
@@ -152,4 +153,7 @@
     <string name="clock_format_system">מערכת</string>
     <string name="clock_format_12">12 שעות</string>
     <string name="clock_format_24">24 שעות</string>
+    <string name="screensaver_time_label">שומר המסך של השעון</string>
+    <string name="screensaver_time_state">שומר המסך של השעון: %1$s</string>
+    <string name="screensaver_minutes">%1$d דק׳</string>
 </resources>

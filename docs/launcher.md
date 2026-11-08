@@ -44,7 +44,8 @@ Click **Settings** for the TV's own settings. Hold OK on it for its menu:
 - **Module cards**, with `module_cards`.
 - **Edit dock**, with `dock_row`.
 - **Reorder apps**: OK picks an app up, the arrows move it, Back places it, and Back again finishes.
-  With `tile_menu` (on by default since 3.3), holding OK on a tile offers **Move**, which picks that app up straight away.
+  With `tile_menu` (on by default since 3.3), holding OK on a tile offers **Move**, which picks that app up
+  straight away; placing it ends the mode, so a press opens apps and a hold opens the menu again.
 - **Restart…** while `HomeKeyService` runs, which opens the system power menu (a launcher may not
   restart the TV itself).
 
@@ -56,6 +57,8 @@ The launcher's own page has these rows, top to bottom:
   its own row (`dock_row`, on by default).
 - **Clock**: **System** follows the TV's 12- or 24-hour setting; **12-hour** or **24-hour** sets the launcher's
   clocks (Home and the clock screensaver) to that, whatever the TV uses (`clock_format` in a theme).
+- **Clock screensaver**: Off, or how many minutes Home may sit untouched before the clock appears:
+  1, 2, 5, 10, 15, 20, 30 or 60 (`home_idle_clock_minutes` in a theme).
 - **Wallpaper**: one picture from the theme's collection (or its `wallpaper.jpg`), **None**, or **Theme
   default**. A pick holds that picture and stops the rotation until you choose Theme default, press
   Follow theme, or push the theme again.

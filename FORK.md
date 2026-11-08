@@ -14,11 +14,23 @@ plus the weather line under the clock.
   app grid scrolls up. Started and stopped with Home.
 - The cards editor: Launcher settings → **Widgets** (add, move, resize, remove, per-card options).
   It opens over the real Home, so the cards stand where they will.
+- The tile menu's **Move** places that one app and ends reorder mode, so a press opens apps and a hold
+  opens the menu again; **Reorder apps** keeps the multi-app session.
+- The App library opens any app on a press (`library_ok_opens`): hold OK offers Open, Add to Home (or
+  Remove from Home) and App info, whether or not the app is already on Home.
+- Launcher settings → **Clock screensaver** picks Off or 1–60 idle minutes before the clock screensaver
+  starts (`home_idle_clock_minutes`), instead of editing `config.xml`.
 - `INTERNET`, `ACCESS_COARSE_LOCATION`; `ACCESS_FINE_LOCATION` is granted by the install script.
 - `personal/theme-widgets`: the dock, five columns, the static aurora wallpaper, `power_on_home` on,
-  `show_stats` off (the weather line takes that place), `icon_only_buttons` and `wifi_status_color`.
+  `show_stats` off (the weather line takes that place), `icon_only_buttons`, `wifi_status_color` and
+  `fade_rows` (rows scrolling up under the clock fade out instead of being cut off there).
 - The Wi-Fi pill turns green while the TV is online and stays white when it is not, and the connected
-  network's name sits in green above the pills, on the greeting's line (`wifiName`).
+  network's name sits in green above the pills, on the greeting's line (`wifiName`). While a VPN is up, a
+  small green shield sits before that name.
+- On Home, holding the Xiaomi MI/PatchWall button (the XMRM-007 remote's, `KEYCODE_BUTTON_4`/191) opens the
+  Inputs menu; a tap still opens Live TV/last source. The helper runs from `InputKeyService`, which the
+  install script now enables (`-InputKeyService`), and the keycode list is `hold_input_keycodes` in
+  `config.xml`.
 
 Everything else is upstream. The launcher still has no background services and no polling; the
 network is read only while a weather card or the weather line is on screen.
@@ -34,7 +46,7 @@ python -m venv tools\venv
 tools\venv\Scripts\python.exe -m pip install -r tools\requirements.txt
 
 powershell -ExecutionPolicy Bypass -File launcher\build-and-install.ps1 -TvHost <tv ip> `
-    -HomeKeyService -RestoreKeyServices
+    -HomeKeyService -InputKeyService -RestoreKeyServices
 powershell -ExecutionPolicy Bypass -File tools\theme.ps1 -TvHost <tv ip> personal\theme-widgets
 ```
 

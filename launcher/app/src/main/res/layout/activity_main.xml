@@ -350,6 +350,8 @@
                 android:singleLine="true"
                 android:ellipsize="end"
                 android:maxWidth="320dp"
+                android:drawablePadding="4dp"
+                android:drawableTint="#FF34C759"
                 android:textColor="#FF34C759"
                 android:textSize="12sp"
                 android:fontFamily="@string/font_medium"

@@ -107,6 +107,7 @@
     <string name="dock_edit_pick_place">Choose the dock place for this app and press OK. Back to cancel.</string>
     <string name="reorder">Reorder apps</string>
     <string name="tile_move">Move</string>
+    <string name="move_hint">Arrows move the app, OK or Back places it.</string>
     <string name="reorder_hint">OK picks up an app, arrows move it, Back places it. Back again to finish.</string>
     <string name="reorder_not_saved">Couldn\'t save the new order</string>
     <string name="app_library">App library</string>
@@ -159,4 +160,7 @@
     <string name="clock_format_system">System</string>
     <string name="clock_format_12">12-hour</string>
     <string name="clock_format_24">24-hour</string>
+    <string name="screensaver_time_label">Clock screensaver</string>
+    <string name="screensaver_time_state">Clock screensaver: %1$s</string>
+    <string name="screensaver_minutes">%1$d min</string>
 </resources>
