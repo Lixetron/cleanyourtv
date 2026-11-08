@@ -21,3 +21,6 @@ bench-results/
 *.aab
 launcher/hs_err_pid*.log
 launcher/replay_pid*.log
+
+# AirPlay receiver APK downloaded by airplay/build-and-install.ps1
+airplay/*.apk

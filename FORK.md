@@ -39,6 +39,22 @@ powershell -ExecutionPolicy Bypass -File tools\theme.ps1 -TvHost <tv ip> persona
 `launcher/app/src/main/java/com/gathin/tvhome/MainActivity.java` → `widgetSurface()` holds the grid
 size, its place on screen (418 / 112 dp) and the default cards; `columns` in the theme is the dock.
 
+## AirPlay
+
+`airplay/` installs the separate GPL-3 receiver
+[jqssun/android-airplay-server](https://github.com/jqssun/android-airplay-server) (`io.github.jqssun.airplay`,
+pinned `v0.0.33`, SHA-256 checked) as a background service: the TV appears in iOS Control Center →
+Screen Mirroring as "Mi TV 4S", starts with the TV, and is exempt from Doze and background limits.
+Only the MIT script lives here; the APK is downloaded from the official release and is not committed.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File airplay\build-and-install.ps1 -TvHost <tv ip> -Name "Mi TV 4S"
+```
+
+Verified on the Mi TV 4S: auto-start after a reboot, TCP 7000 listening, mDNS `_airplay._tcp` and
+`_raop._tcp` answering. Screen mirroring and audio work; DRM video (Netflix, Apple TV+) does not,
+because FairPlay cannot be decrypted.
+
 ## Keeping up with upstream
 
 ```bash
