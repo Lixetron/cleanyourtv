@@ -79,12 +79,14 @@ git merge upstream/main        # on this branch, resolve conflicts in MainActivi
 
 ## Publishing this fork
 
-The checkout already has the full upstream history. Create an empty repository on GitHub (no README,
-no licence), then:
+The fork lives at [Lixetron/cleanyourtv](https://github.com/Lixetron/cleanyourtv). `origin` is the
+fork, `upstream` is Gathin23's repository, `main` mirrors `upstream/main` and the work lives on
+`personal`:
 
 ```bash
-git remote add origin https://github.com/<you>/<repo>.git
+git checkout personal
 git push -u origin personal
 ```
 
-`origin` is free: this checkout's remote is named `upstream`.
+GitHub still opens the fork on `main`, which matches upstream. Pick `personal` as the default branch
+under **Settings → Branches** to see the changes first.
