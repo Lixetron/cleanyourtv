@@ -9,6 +9,10 @@
 
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- The widget cards and the weather line under the clock: MET Norway (rounded location), the central
+         bank's rates and "on this day". Nothing else in the launcher uses the network. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Needed since Android 10 to read the Wi-Fi network name for the network pill. Never requested at
          runtime: build-and-install grants it with pm grant, so lint's Android 12 "ask for COARSE with
          FINE" rule does not apply here. -->
@@ -145,6 +149,14 @@
             android:taskAffinity=""
             android:excludeFromRecents="true"
             android:theme="@style/Theme.TvHome" />
+
+        <!-- The cards editor (com.gathin.widgets): translucent, over the real Home. -->
+        <activity
+            android:name=".WidgetSettingsActivity"
+            android:theme="@style/Theme.TvHome.Editor"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:screenOrientation="landscape" />
         <!-- Home button for remotes that send KEYCODE_ALL_APPS (Xiaomi). Opt-in: HOME_KEY_SERVICE=1
              build-and-install.sh; see HomeKeyService. -->
         <service

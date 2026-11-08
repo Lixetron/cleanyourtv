@@ -143,6 +143,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     private AppAdapter adapter;
     private RecyclerView grid;
+    /** The widget cards on Home (com.gathin.widgets); set up in onCreate. */
+    private com.gathin.widgets.Widgets.Host widgets;
+    /** The weather line under the clock (HomeWeather). */
+    private TextView homeWeather;
     private FrameLayout root;
     private WallpaperPlayer wallpaperPlayer;
     private GlassView glass;
@@ -439,6 +443,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         public void run() {
             updateGreeting();
             updatePanel();
+            if (homeWeather != null) updateHomeWeather();
             // The pill follows the network callbacks and each return to Home; only the festive light follows the
             // signal level, so only it needs this minute's binder calls (about 7 ms on the UI thread).
             if (festive) updateWifiLabel();
@@ -969,6 +974,58 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (savedInstanceState == null && !openLauncherSettingsIfAsked(getIntent()) && !openLibraryIfAsked(getIntent())) {
             openInputsIfAsked(getIntent());
         }
+
+        widgets = new com.gathin.widgets.Widgets.Host(this, widgetSurface(this));
+        root.addView(widgets.view(), new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        homeWeather = findViewById(R.id.homeWeather);
+        grid.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
+                followWidgets(rv);
+            }
+        });
+    }
+
+    /** Where the cards may stand on Home, their margins and fonts (com.gathin.widgets). */
+    static com.gathin.widgets.Widgets.Surface widgetSurface(Context ctx) {
+        com.gathin.widgets.Widgets.Surface s = new com.gathin.widgets.Widgets.Surface(4, 2, 418, 112,
+                ctx.getResources().getFont(R.font.outfit_light),
+                ctx.getResources().getFont(R.font.outfit_regular),
+                ctx.getResources().getFont(R.font.outfit_medium));
+        s.home = true;
+        s.defaults.put("weather", new com.gathin.widgets.Widgets.Placement(0, 0, 2, 1));
+        s.defaults.put("world", new com.gathin.widgets.Widgets.Placement(0, 1, 2, 1));
+        s.defaults.put("moon", new com.gathin.widgets.Widgets.Placement(2, 0, 2, 1));
+        s.defaults.put("sun", new com.gathin.widgets.Widgets.Placement(2, 1, 2, 1));
+        return s;
+    }
+
+    /** The cards ride up with the grid as it scrolls to the rows under the dock, and fade. */
+    private void followWidgets(RecyclerView rv) {
+        if (widgets == null) return;
+        float off = Math.max(0, rv.computeVerticalScrollOffset());
+        View layer = widgets.view();
+        layer.setTranslationY(-off);
+        layer.setAlpha(Math.max(0f, 1f - off / (140 * density)));
+    }
+
+    /** The weather under the clock: the last reading at once, a fresh one in the background when it is stale. */
+    private void updateHomeWeather() {
+        String text = HomeWeather.cached(this);
+        homeWeather.setText(text);
+        homeWeather.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
+        if (!HomeWeather.stale(this)) return;
+        final Context app = getApplicationContext();
+        new Thread(() -> {
+            String fresh = HomeWeather.refresh(app);
+            if (fresh.isEmpty()) return;
+            runOnUiThread(() -> {
+                if (isDestroyed() || homeWeather == null) return;
+                homeWeather.setText(fresh);
+                homeWeather.setVisibility(View.VISIBLE);
+            });
+        }, "home-weather").start();
     }
 
     /**
@@ -1101,6 +1158,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         restartIdleClock();
         promptsPaused = false;
+        if (widgets != null) widgets.start();
+        if (homeWeather != null) updateHomeWeather();
         if (grid.getAdapter() == null) grid.setAdapter(adapter);   // dropped by onTrimMemory
         switch (tileRefresh.onResume(packagesChangedSinceRebuild())) {
             case REBUILD:
@@ -1159,6 +1218,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == LAUNCHER_SETTINGS_REQUEST && resultCode == RESULT_OK && data != null
+                && data.getBooleanExtra(LauncherSettingsActivity.EXTRA_WIDGETS, false)) {
+            // Settings are closed, so the editor's translucent window has the real Home beneath it.
+            startActivity(new Intent(this, WidgetSettingsActivity.class));
+            return;
+        }
         if (requestCode == LAUNCHER_SETTINGS_REQUEST && resultCode == RESULT_OK
                 && data != null && data.getBooleanExtra(LauncherSettingsActivity.EXTRA_REORDER, false)) {
             getIntent().putExtra(LauncherSettingsActivity.EXTRA_REORDER, true);
@@ -1303,6 +1368,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     protected void onPause() {
         super.onPause();
         resumed = false;
+        if (widgets != null) widgets.stop();
         // No UP reaches a paused Home, so a vendor-key hold it saw go down would still open its app later.
         // Only Home's own share is dropped: a key service that saw the same DOWN keeps its hold.
         RemoteKeys.release(this);

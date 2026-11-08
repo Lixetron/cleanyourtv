@@ -17,10 +17,11 @@
 
     <!-- Apps pinned to the dock row at the bottom, in this order. Missing apps are skipped. -->
     <string-array name="dock_apps">
-        <item>com.netflix.ninja</item>
-        <item>com.amazon.amazonvideo.livingroom</item>
-        <item>com.google.android.youtube.tv</item>
-        <item>in.startv.hotstar</item>
+        <item>org.smarttube.stable</item>
+        <item>com.vk.tv</item>
+        <item>ru.astroapps.hdrezka</item>
+        <item>org.jellyfin.androidtv</item>
+        <item>de.benzac.msx</item>
     </string-array>
     <!-- With fewer dock_apps than columns (or a dock app that is not installed), the free dock slots take
          the first grid apps, so the dock never shows a gap. false leaves them empty (#162); a theme can
@@ -31,6 +32,7 @@
     <string-array name="hidden_apps">
         <item>com.mediatek.wwtv.tvcenter</item>
         <item>com.mitv.gallery</item>
+        <item>com.apedroid.hwkeyboardhelper</item>
     </string-array>
 
     <!-- The TV's Live TV / tuner app, offered at the end of the Inputs menu. Leave empty to omit. -->
@@ -72,7 +74,7 @@
          the Live TV app normally instead of selecting a different input. A wrong but registered ID
          can open the app's tuner setup screen instead; that is not detected as a fallback condition.
          Use a verified input ID, or leave this empty. See docs/devices/haam-r4.md. -->
-    <string name="live_tv_input_id" translatable="false"></string>
+    <string name="live_tv_input_id" translatable="false">content://android.media.tv/channel</string>
 
     <!-- Tiles that open a screen of the app instead of its start screen: "package=action", sent to that package.
          A tile whose action no longer resolves opens the app normally. MagentaTV's program guide:
@@ -187,7 +189,7 @@
          off the enabled list. true: Home puts the helpers that were running back when it starts; one turned off in
          Settings stays off. Needs WRITE_SECURE_SETTINGS, which build-and-install grants with RESTORE_KEY_SERVICES=1
          (-RestoreKeyServices on Windows) and takes back on an install without it. Can also be set with "restore_key_services": true in a theme's config.json. -->
-    <bool name="restore_key_services">false</bool>
+    <bool name="restore_key_services">true</bool>
 
     <!-- More remote buttons that open the input switcher, by Android keycode (INPUT_KEY_SERVICE=1
          build-and-install.sh; KEYCODE_TV always does). For buttons only a disabled app answered: the Xiaomi
@@ -245,7 +247,7 @@
          on, HomeKeyService (HOME_KEY_SERVICE=1) sends a Live TV window back to Home; the first key hands control
          to the user, so opening Live TV on purpose is never undone. The opposite of boot_to_live_tv, and ignored
          when that is on. A theme's config.json can set it too. Off by default. -->
-    <bool name="power_on_home">false</bool>
+    <bool name="power_on_home">true</bool>
     <!-- Home at every power-on, whatever the firmware put in front (the last HDMI input, Live TV or an app),
          for TVs that come back to the last source, like Philips. Needs HOME_KEY_SERVICE=1; a key pressed first
          wins. Ignored with boot_to_live_tv or an Open on start app. Can also be set with "power_on_home_always". -->
@@ -345,11 +347,11 @@
          of white for both. Can also be set with "wifi_status_warnings": true in a theme's config.json. -->
     <bool name="wifi_status_warnings">false</bool>
     <!-- The app library as a round button in the top bar, beside Settings (app_library must be on too). -->
-    <bool name="library_button">false</bool>
+    <bool name="library_button">true</bool>
     <!-- The App library pill after the last Home row. false hides it while library_button is on, so the top-bar
          button stays the way in, and Down from the last row stays put as with app_library off. Can also be set
          with "show_library_pill": false in a theme's config.json. -->
-    <bool name="show_library_pill">true</bool>
+    <bool name="show_library_pill">false</bool>
     <!-- With icon_only_buttons: keep the network name on the Wi-Fi pill up to this width in dp, cut with an ellipsis.
          0 leaves the Wi-Fi pill as an icon. -->
     <integer name="wifi_label_width">0</integer>
@@ -407,7 +409,7 @@
 
     <!-- Tiles per row in the grid; the dock always has this many slots. Tiles are 180dp wide at 4 columns and
          shrink to fit from 5 up (about 144dp at 5, 117dp at 6 on a 1080p TV). -->
-    <integer name="columns">4</integer>
+    <integer name="columns">5</integer>
 
     <!-- Basic motion is on; advanced effects are opt-in in the launcher's own Settings screen. -->
     <bool name="animations">true</bool>
@@ -418,7 +420,7 @@
     <bool name="show_home_settings_shortcut">false</bool>
 
     <!-- Installed launchable apps, including ordinary Android apps. Also settable in config.json. -->
-    <bool name="app_library">false</bool>
+    <bool name="app_library">true</bool>
     <!-- Every app tile is its icon on a card tinted from that icon, name only under the focused tile,
          instead of each app's own banner. Off by default; a theme can set "uniform_tiles": true. -->
     <bool name="uniform_tiles">false</bool>
@@ -466,7 +468,7 @@
 
     <!-- One line under the clock: CPU, free memory and free storage. Off by default; a theme can set
          "show_stats": true. Nothing is read, and the clock does not move, while this is false. -->
-    <bool name="show_stats">false</bool>
+    <bool name="show_stats">true</bool>
 
     <!-- Each team's next game in the F1 panel's place under the clock, rotating with the theme's F1 weekend: the package
          of an add-on that publishes them (the Game Day add-on: io.github.justinnewman.gameday; contract in docs/modules.md).
@@ -524,7 +526,7 @@
          Unlike the system screensaver this never starts over live TV or an app, which matters on TVs whose
          Live TV window does not keep the screen on (CVTE): there the system screensaver would start in the
          middle of a programme. Can also be set with "home_idle_clock_minutes": 10 in a theme's config.json. -->
-    <integer name="home_idle_clock_minutes">0</integer>
+    <integer name="home_idle_clock_minutes">10</integer>
     <!-- Back on the Home screen opens the clock screensaver (ClockActivity, the same screen as
          home_idle_clock_minutes). Back keeps working as usual inside apps and Settings; only Home's own Back
          press changes. Off by default (Back does nothing on Home); a theme can set "back_opens_clock": true. -->

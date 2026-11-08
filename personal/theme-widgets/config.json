@@ -1,0 +1,16 @@
+{
+  "dock_apps": [
+    "org.smarttube.stable",
+    "ru.astroapps.hdrezka",
+    "com.vk.tv",
+    "ru.rutube.app",
+    "com.bt.smarttv"
+  ],
+  "columns": 5,
+  "show_stats": false,
+  "power_on_home": true,
+  "wallpaper": true,
+  "wallpaper_dim": 25,
+  "background_color": "#070A14",
+  "launcher_settings_button": true
+}
