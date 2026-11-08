@@ -833,7 +833,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         launcherSettingsButton = cfg.launcherSettingsButton;
         if (launcherSettingsButton) {
             ((TextView) btnSettings).setText(R.string.launcher_settings);
-            ((TextView) btnSettings).setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_home_settings_pill, 0, 0, 0);
+            ((TextView) btnSettings).setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_settings, 0, 0, 0);
         }
         btnSettings.setOnClickListener(v -> {
             if (launcherSettingsButton) startActivityForResult(

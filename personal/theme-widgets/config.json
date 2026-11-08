@@ -12,5 +12,6 @@
   "wallpaper": true,
   "wallpaper_dim": 25,
   "background_color": "#070A14",
-  "launcher_settings_button": true
+  "launcher_settings_button": true,
+  "icon_only_buttons": true
 }
