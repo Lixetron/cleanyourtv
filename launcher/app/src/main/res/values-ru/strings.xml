@@ -160,4 +160,9 @@
     <string name="screensaver_time_label">Заставка часов</string>
     <string name="screensaver_time_state">Заставка часов: %1$s</string>
     <string name="screensaver_minutes">%1$d мин</string>
+    <string name="fix_time_state">Восстанавливать время после сна: %1$s</string>
+    <string name="fix_time_hint">После загрузки или пробуждения, если часы всё ещё неверные, лаунчер включает автоматическое время и один раз перезапускает Wi-Fi. Сам телевизор выставить часы не может.</string>
+    <string name="fix_time_delay_label">Задержка перезапуска Wi-Fi</string>
+    <string name="fix_time_delay_state">Перезапуск Wi-Fi через: %1$s</string>
+    <string name="fix_time_delay_seconds">%1$d с</string>
 </resources>

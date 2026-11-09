@@ -16,5 +16,6 @@
   "icon_only_buttons": true,
   "wifi_status_color": true,
   "fade_rows": true,
-  "fix_time_on_wake": true
+  "fix_time_on_wake": true,
+  "fix_time_delay_seconds": 10
 }

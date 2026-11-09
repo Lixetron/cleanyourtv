@@ -59,6 +59,12 @@ The launcher's own page has these rows, top to bottom:
   clocks (Home and the clock screensaver) to that, whatever the TV uses (`clock_format` in a theme).
 - **Clock screensaver**: Off, or how many minutes Home may sit untouched before the clock appears:
   1, 2, 5, 10, 15, 20, 30 or 60 (`home_idle_clock_minutes` in a theme).
+- **Recover time after wake** on or off (`fix_time_on_wake`): after a boot or a wake, if the clock is still
+  the firmware build date (a TV with no working clock battery), Home re-arms automatic time and restarts
+  Wi-Fi once. An app cannot set the clock itself; this only clears the way for Android's own sync.
+- **Wi-Fi restart after** 5, 10, 15, 20 or 30 seconds (`fix_time_delay_seconds`), how long that check waits;
+  only with Recover time after wake on. Android's own sync needs about 8 seconds after the screen comes on,
+  so 5 can be too early at boot.
 - **Wallpaper**: one picture from the theme's collection (or its `wallpaper.jpg`), **None**, or **Theme
   default**. A pick holds that picture and stops the rotation until you choose Theme default, press
   Follow theme, or push the theme again.
@@ -68,6 +74,7 @@ The launcher's own page has these rows, top to bottom:
   time Home comes up after the TV starts. Once per boot, so Home and Back still reach the launcher.
 - **Follow theme (reset on-TV choices)**, which clears every choice above. Pushing or resetting a theme
   clears them too.
+- **Widgets** opens the cards editor over Home: add, move, resize or remove a card, and set each one's options.
 - **Choose default home** opens Android's home picker, and **TV system settings** the TV's own settings
   page.
 

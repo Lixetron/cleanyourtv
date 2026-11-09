@@ -163,4 +163,10 @@
     <string name="screensaver_time_label">Clock screensaver</string>
     <string name="screensaver_time_state">Clock screensaver: %1$s</string>
     <string name="screensaver_minutes">%1$d min</string>
+    <!-- fix_time_on_wake: after a boot or a wake, re-arm automatic time and restart Wi-Fi once if the clock is wrong. -->
+    <string name="fix_time_state">Recover time after wake: %1$s</string>
+    <string name="fix_time_hint">After a boot or a wake, if the clock is still wrong the launcher re-arms automatic time and restarts Wi-Fi once. The launcher cannot set the TV\'s clock itself.</string>
+    <string name="fix_time_delay_label">Wi-Fi restart delay</string>
+    <string name="fix_time_delay_state">Wi-Fi restart after: %1$s</string>
+    <string name="fix_time_delay_seconds">%1$d s</string>
 </resources>

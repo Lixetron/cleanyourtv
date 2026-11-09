@@ -51,8 +51,9 @@ SCREENSHOT_WANTED = {
     "race_calendar", "reduced_motion", "reorder_button", "restore_key_services", "rows_below_dock",
     "settings_fallback_components", "settings_key_keycodes", "settings_key_scancodes", "shamsi_date",
     "show_home_settings_shortcut", "show_inputs_pill", "show_network_pill", "show_stats",
-    # Fork-only keys with nothing on screen to picture: a wake-time recovery switch and a remote-key list.
-    "fix_time_on_wake", "hold_input_keycodes",
+    # Fork-only keys with nothing on screen to picture: a wake-time recovery switch and its delay,
+    # and a remote-key list.
+    "fix_time_on_wake", "fix_time_delay_seconds", "hold_input_keycodes",
     "source_panel_action", "source_panel_extra", "source_panel_service", "stock_home_redirect",
     "tile_menu", "top_menu", "vpn_app", "wallpaper", "wallpaper_captions", "wallpaper_dim",
     "wallpaper_moods", "wallpaper_order", "wallpaper_true_color", "wifi_label_width",

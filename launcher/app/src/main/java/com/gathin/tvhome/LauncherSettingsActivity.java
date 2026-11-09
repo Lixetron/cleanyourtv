@@ -49,6 +49,12 @@ public final class LauncherSettingsActivity extends Activity {
     private int dockOpacity;
     private String clockFormat;
     private int idleClockMinutes;
+    /** fix_time_on_wake's check delay, in seconds; shown as one choice row. */
+    private static final int[] FIX_TIME_DELAY_CHOICES = {5, 10, 15, 20, 30};
+    private boolean fixTimeOnWake;
+    private int fixTimeDelaySeconds;
+    private TextView fixTimeChoice;
+    private TextView fixTimeDelayChoice;
     private boolean animations;
     private boolean advancedEffects;
 
@@ -73,6 +79,8 @@ public final class LauncherSettingsActivity extends Activity {
         dockOpacity = config.dockOpacity;
         clockFormat = config.clockFormat;
         idleClockMinutes = config.homeIdleClockMinutes;
+        fixTimeOnWake = config.fixTimeOnWake;
+        fixTimeDelaySeconds = config.fixTimeDelaySeconds;
         animations = config.animations;
         advancedEffects = config.animations && config.advancedEffects;
 
@@ -126,6 +134,15 @@ public final class LauncherSettingsActivity extends Activity {
         }
         screensaverChoice = findViewById(R.id.screensaverChoice);
         screensaverChoice.setOnClickListener(v -> showScreensaverPicker());
+        fixTimeChoice = findViewById(R.id.fixTimeChoice);
+        fixTimeChoice.setOnClickListener(v -> {
+            fixTimeOnWake = !fixTimeOnWake;
+            choices.edit().putBoolean(Config.FIX_TIME_ON_WAKE_KEY, fixTimeOnWake).apply();
+            changed();
+            refresh();
+        });
+        fixTimeDelayChoice = findViewById(R.id.fixTimeDelayChoice);
+        fixTimeDelayChoice.setOnClickListener(v -> showFixTimeDelayPicker());
         // Mirror text alignment without globally opting the launcher into RTL. Numeric rows
         // still need explicit ordering in Android's no-supportsRtl compatibility mode.
         if (getResources().getBoolean(R.bool.rtl_menu_bar))
@@ -171,13 +188,17 @@ public final class LauncherSettingsActivity extends Activity {
             choices.edit().remove("columns").remove(Config.ROWS_BELOW_DOCK_KEY).remove("animations")
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY)
                     .remove(Config.DOCK_OPACITY_KEY).remove(Config.CLOCK_FORMAT_KEY)
-                    .remove(Config.IDLE_CLOCK_MINUTES_KEY).remove(OpenOnStart.KEY).commit();
+                    .remove(Config.IDLE_CLOCK_MINUTES_KEY)
+                    .remove(Config.FIX_TIME_ON_WAKE_KEY).remove(Config.FIX_TIME_DELAY_KEY)
+                    .remove(OpenOnStart.KEY).commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
             dockOpacity = current.dockOpacity;
             clockFormat = current.clockFormat;
             idleClockMinutes = current.homeIdleClockMinutes;
+            fixTimeOnWake = current.fixTimeOnWake;
+            fixTimeDelaySeconds = current.fixTimeDelaySeconds;
             animations = current.animations;
             advancedEffects = current.animations && current.advancedEffects;
             changed();
@@ -261,6 +282,27 @@ public final class LauncherSettingsActivity extends Activity {
     private String idleClockLabel() {
         return idleClockMinutes == 0 ? getString(R.string.off)
                 : getString(R.string.screensaver_minutes, idleClockMinutes);
+    }
+
+    /** 5 to 30 seconds the fix_time_on_wake check waits, in Launcher settings. */
+    private void showFixTimeDelayPicker() {
+        String[] labels = new String[FIX_TIME_DELAY_CHOICES.length];
+        int checked = -1;
+        for (int i = 0; i < FIX_TIME_DELAY_CHOICES.length; i++) {
+            labels[i] = getString(R.string.fix_time_delay_seconds, FIX_TIME_DELAY_CHOICES[i]);
+            if (FIX_TIME_DELAY_CHOICES[i] == fixTimeDelaySeconds) checked = i;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.fix_time_delay_label)
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    dialog.dismiss();
+                    fixTimeDelaySeconds = FIX_TIME_DELAY_CHOICES[which];
+                    choices.edit().putInt(Config.FIX_TIME_DELAY_KEY, fixTimeDelaySeconds).apply();
+                    changed();
+                    refresh();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     /** Off, then every app with a TV entry point by name. Saved at once; it is read on the next boot. */
@@ -350,6 +392,11 @@ public final class LauncherSettingsActivity extends Activity {
             clockChoices[i].setSelected(CLOCK_FORMATS[i].equals(clockFormat));
         }
         screensaverChoice.setText(getString(R.string.screensaver_time_state, idleClockLabel()));
+        fixTimeChoice.setText(getString(R.string.fix_time_state,
+                getString(fixTimeOnWake ? R.string.on : R.string.off)));
+        fixTimeDelayChoice.setText(getString(R.string.fix_time_delay_state,
+                getString(R.string.fix_time_delay_seconds, fixTimeDelaySeconds)));
+        fixTimeDelayChoice.setVisibility(fixTimeOnWake ? View.VISIBLE : View.GONE);
         animationsChoice.setText(getString(R.string.animations_state,
                 getString(animations ? R.string.on : R.string.off)));
         advancedChoice.setText(getString(R.string.advanced_effects_state,
@@ -370,6 +417,7 @@ public final class LauncherSettingsActivity extends Activity {
                 || choices.contains("animations") || choices.contains("advanced_effects")
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains(Config.DOCK_OPACITY_KEY)
                 || choices.contains(Config.CLOCK_FORMAT_KEY) || choices.contains(Config.IDLE_CLOCK_MINUTES_KEY)
+                || choices.contains(Config.FIX_TIME_ON_WAKE_KEY) || choices.contains(Config.FIX_TIME_DELAY_KEY)
                 || choices.contains(OpenOnStart.KEY);
     }
 

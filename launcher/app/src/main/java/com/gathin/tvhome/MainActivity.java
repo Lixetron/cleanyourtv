@@ -113,8 +113,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean rtlAppGrid;
     private static final long MINUTE_MS = 60_000L;
     private static final long STATS_MS = 10_000L;
-    /** fix_time_on_wake: how long Android's own NTP sync gets after a wake before the launcher steps in. */
-    private static final long WAKE_FIX_DELAY_MS = 20_000L;
     /** A second look when the clock is right but the network has not validated yet. */
     private static final long WAKE_FIX_RETRY_MS = 15_000L;
     /** At most one fix_time_on_wake Wi-Fi restart this often, so a stale network cannot cycle the radio. */
@@ -135,6 +133,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** After a wake, re-arm automatic time and restart Wi-Fi once when the clock or network is still wrong
      *  (config.xml / theme fix_time_on_wake). */
     private boolean fixTimeOnWake;
+    /** Seconds the wake-time check waits, from config.xml / theme or Launcher settings. */
+    private long wakeFixDelayMs;
     /** The clock looked right but the network had not validated: the second, final look already ran. */
     private boolean wakeTimeRetried;
     /** SystemClock.elapsedRealtime() of the last fix_time_on_wake Wi-Fi restart, 0 until there is one. */
@@ -521,6 +521,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         idleClockMs = cfg.homeIdleClockMinutes * MINUTE_MS;
         backOpensClock = cfg.backOpensClock;
         fixTimeOnWake = cfg.fixTimeOnWake;
+        wakeFixDelayMs = Math.max(1, cfg.fixTimeDelaySeconds) * 1000L;
         bootToLiveTv = cfg.bootToLiveTv;
         openOnStartChoice = cfg.openOnStartChoice;
         openOnStartWaitMs = cfg.openOnStartNetworkWait * 1000L;
@@ -1405,7 +1406,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private void restartWakeTimeCheck() {
         handler.removeCallbacks(wakeTimeCheck);
         wakeTimeRetried = false;
-        if (fixTimeOnWake) handler.postDelayed(wakeTimeCheck, WAKE_FIX_DELAY_MS);
+        if (fixTimeOnWake) handler.postDelayed(wakeTimeCheck, wakeFixDelayMs);
     }
 
     @Override

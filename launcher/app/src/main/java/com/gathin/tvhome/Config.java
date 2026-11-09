@@ -46,6 +46,10 @@ final class Config {
     static final String CLOCK_FORMAT_KEY = "clock_format";
     /** Minutes Home may sit untouched before the clock screensaver, chosen in Launcher settings. */
     static final String IDLE_CLOCK_MINUTES_KEY = "idle_clock_minutes";
+    /** fix_time_on_wake chosen in Launcher settings, over the theme's (config.xml). */
+    static final String FIX_TIME_ON_WAKE_KEY = "fix_time_on_wake";
+    /** Seconds the wake-time check waits before it acts, chosen in Launcher settings. */
+    static final String FIX_TIME_DELAY_KEY = "fix_time_delay";
     /**
      * Counts the changes made in Launcher settings. Home remembers the count it was built with and rebuilds on
      * resume when it differs, however the settings were left (see MainActivity#onResume).
@@ -141,6 +145,8 @@ final class Config {
     /** After a boot or a wake, re-arm automatic time and restart Wi-Fi once if the clock or network is still wrong
      *  (config.xml / theme fix_time_on_wake); see MainActivity.checkTimeAfterWake. */
     final boolean fixTimeOnWake;
+    /** Seconds after a wake or boot before the check acts (config.xml / theme fix_time_delay_seconds). */
+    final int fixTimeDelaySeconds;
     /** The ambient glow takes a new app's colour in one frame instead of dipping and fading (config.xml / theme glow_snap). */
     final boolean glowSnap;
     /** The remote's Settings button clears the TV Settings task before opening it (config.xml / theme settings_key_clear_task). */
@@ -305,7 +311,7 @@ final class Config {
                    boolean handleViewInputs, boolean tileMenu, boolean dockEvenPadding, boolean dockBand, boolean cinematicDots, boolean cinematicWhiteFocus, boolean wifiStatusColor, int cinematicScrim, int cinematicArt,
                    Map<String, Set<String>> wallpaperMoods, boolean gamepadPassthrough, boolean consumeVolumeKeys, boolean homeIgnoreChannelKeys, boolean powerOnHome, boolean homeLongPressHome, boolean wifiStatusWarnings, List<String> topBarApps, boolean showGreeting, boolean headerWhite, boolean clockWallpaper, int clockWallpaperDim, boolean clockGlow, String glassStyle, boolean singleRow, boolean dockBandAll, boolean lunarDate, int lunarUtcOffset, boolean dateBelowClock, boolean vpnPill, String locale, boolean powerOnHomeAlways, boolean inputsConnectedOnly, boolean inputsCecStateOnly,
                    int openOnStartNetworkWait, boolean openOnStartOnWake, boolean iconOnlyVpn, String clockFormat, boolean backOpensClock, boolean glowSnap,
-                   boolean settingsKeyClearTask, boolean fixTimeOnWake) {
+                   boolean settingsKeyClearTask, boolean fixTimeOnWake, int fixTimeDelaySeconds) {
         this.handleViewInputs = handleViewInputs;
         this.tileMenu = tileMenu;
         this.inputKeycodes = inputKeycodes;
@@ -426,6 +432,7 @@ final class Config {
         this.wallpaperCaptions = wallpaperCaptions;
         this.glassStyle = glassStyle(glassStyle);
         this.fixTimeOnWake = fixTimeOnWake;
+        this.fixTimeDelaySeconds = fixTimeDelaySeconds;
     }
 
     /** A known glow_style, or radial (the default) for anything else. */
@@ -492,6 +499,7 @@ final class Config {
         boolean iconOnlyVpn = res.getBoolean(R.bool.icon_only_vpn);
         boolean backOpensClock = res.getBoolean(R.bool.back_opens_clock);
         boolean fixTimeOnWake = res.getBoolean(R.bool.fix_time_on_wake);
+        int fixTimeDelaySeconds = res.getInteger(R.integer.fix_time_delay_seconds);
         boolean glowSnap = res.getBoolean(R.bool.glow_snap);
         boolean settingsKeyClearTask = res.getBoolean(R.bool.settings_key_clear_task);
         boolean libraryButton = res.getBoolean(R.bool.library_button);
@@ -610,6 +618,7 @@ final class Config {
             iconOnlyVpn = bool(json, "icon_only_vpn", iconOnlyVpn);
             backOpensClock = bool(json, "back_opens_clock", backOpensClock);
             fixTimeOnWake = bool(json, "fix_time_on_wake", fixTimeOnWake);
+            fixTimeDelaySeconds = integer(json, "fix_time_delay_seconds", fixTimeDelaySeconds, 1, 60);
             glowSnap = bool(json, "glow_snap", glowSnap);
             settingsKeyClearTask = bool(json, "settings_key_clear_task", settingsKeyClearTask);
             libraryButton = bool(json, "library_button", libraryButton);
@@ -701,6 +710,9 @@ final class Config {
         int dockOpacity = json == null ? 100 : integer(json, "dock_opacity", 100, 30, 100);
         dockOpacity = chosenDockOpacity(choices.getInt(DOCK_OPACITY_KEY, -1), dockOpacity);
         clockFormat = choices.getString(CLOCK_FORMAT_KEY, clockFormat);
+        fixTimeOnWake = choices.getBoolean(FIX_TIME_ON_WAKE_KEY, fixTimeOnWake);
+        int chosenFixDelay = choices.getInt(FIX_TIME_DELAY_KEY, -1);
+        if (chosenFixDelay >= 1 && chosenFixDelay <= 60) fixTimeDelaySeconds = chosenFixDelay;
         int chosenIdleClock = choices.getInt(IDLE_CLOCK_MINUTES_KEY, -1);
         if (chosenIdleClock >= 0 && chosenIdleClock <= 1440) idleClockMinutes = chosenIdleClock;
         String wallpaperOrder = json == null ? WallpaperRotation.ORDER_SHUFFLE
@@ -743,7 +755,7 @@ final class Config {
                 Math.max(0, Math.min(90, clockWallpaperDim)), clockGlow, glassStyle, singleRow && dockRow, dockBandAll, lunar, lunarOffset,
                 dateBelowClock, vpnPill, locale, powerOnHomeAlways, inputsConnectedOnly, inputsCecStateOnly,
                 Math.max(0, Math.min(600, openOnStartNetworkWait)), openOnStartOnWake, iconOnlyVpn, clockFormat, backOpensClock, glowSnap,
-                settingsKeyClearTask, fixTimeOnWake);
+                settingsKeyClearTask, fixTimeOnWake, fixTimeDelaySeconds);
     }
 
     /**
@@ -787,12 +799,15 @@ final class Config {
             SharedPreferences.Editor editor = choices.edit();
             if (!"absent".equals(token)) editor.remove("columns").remove("animations")
                     .remove("advanced_effects").remove(ROWS_BELOW_DOCK_KEY).remove(WALLPAPER_CHOICE_KEY)
-                    .remove(DOCK_OPACITY_KEY).remove(CLOCK_FORMAT_KEY).remove(IDLE_CLOCK_MINUTES_KEY);
+                    .remove(DOCK_OPACITY_KEY).remove(CLOCK_FORMAT_KEY).remove(IDLE_CLOCK_MINUTES_KEY)
+                    .remove(FIX_TIME_ON_WAKE_KEY).remove(FIX_TIME_DELAY_KEY);
             editor.putString(THEME_SIGNATURE_KEY, signature).commit();
         } else if (!seen.equals(signature)) {
             choices.edit().remove("columns").remove("animations").remove("advanced_effects")
                     .remove(ROWS_BELOW_DOCK_KEY).remove(WALLPAPER_CHOICE_KEY).remove(DOCK_OPACITY_KEY)
-                    .remove(CLOCK_FORMAT_KEY).remove(IDLE_CLOCK_MINUTES_KEY).putString(THEME_SIGNATURE_KEY, signature).commit();
+                    .remove(CLOCK_FORMAT_KEY).remove(IDLE_CLOCK_MINUTES_KEY)
+                    .remove(FIX_TIME_ON_WAKE_KEY).remove(FIX_TIME_DELAY_KEY)
+                    .putString(THEME_SIGNATURE_KEY, signature).commit();
         }
     }
 
