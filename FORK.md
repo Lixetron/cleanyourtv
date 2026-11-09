@@ -27,6 +27,11 @@ plus the weather line under the clock.
 - The Wi-Fi pill turns green while the TV is online and stays white when it is not, and the connected
   network's name sits in green above the pills, on the greeting's line (`wifiName`). While a VPN is up, a
   small green shield sits before that name.
+- `fix_time_on_wake`: the Mi TV 4S loses the date on every boot (no working RTC battery), which with strict
+  Private DNS leaves it "connected" with no internet until its own NTP sync gets through. Home waits 20 s
+  after a wake or boot, re-arms `auto_time` where the install script granted `WRITE_SECURE_SETTINGS`, and if
+  the clock is still the firmware build date restarts Wi-Fi once — the same switch that fixes it by hand.
+  Off by default; this fork's theme turns it on.
 - On Home, holding the Xiaomi MI/PatchWall button (the XMRM-007 remote's, `KEYCODE_BUTTON_4`/191) opens the
   Inputs menu; a tap still opens Live TV/last source. The helper runs from `InputKeyService`, which the
   install script now enables (`-InputKeyService`), and the keycode list is `hold_input_keycodes` in

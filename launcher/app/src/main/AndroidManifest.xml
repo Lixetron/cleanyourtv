@@ -9,6 +9,9 @@
 
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- fix_time_on_wake: restarts Wi-Fi once when the clock or network is still wrong after a wake (the same
+         switch the TV's Settings page uses); ignored on Android 10+, where apps may not switch Wi-Fi. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <!-- The widget cards and the weather line under the clock: MET Norway (rounded location), the central
          bank's rates and "on this day". Nothing else in the launcher uses the network. -->
     <uses-permission android:name="android.permission.INTERNET" />

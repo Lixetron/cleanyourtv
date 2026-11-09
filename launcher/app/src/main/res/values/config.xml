@@ -539,6 +539,11 @@
          home_idle_clock_minutes). Back keeps working as usual inside apps and Settings; only Home's own Back
          press changes. Off by default (Back does nothing on Home); a theme can set "back_opens_clock": true. -->
     <bool name="back_opens_clock">false</bool>
+    <!-- After a boot or a wake from standby: if the TV's clock is still the firmware's build date (a dead RTC
+         battery) or the network has not been validated, re-arm automatic time and restart Wi-Fi once, the way the
+         TV's own Wi-Fi switch does. The launcher cannot set the clock itself (SET_TIME is a privileged permission);
+         this only clears the way for Android's own NTP sync. Off by default; a theme can set "fix_time_on_wake": true. -->
+    <bool name="fix_time_on_wake">false</bool>
     <!-- The clock screensaver (Home idle clock and the system screensaver) over Home's wallpaper instead of black with
          a coloured glow. The clock still moves every minute. Can also be set with "clock_wallpaper" in a theme. -->
     <bool name="clock_wallpaper">false</bool>

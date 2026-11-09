@@ -113,6 +113,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean rtlAppGrid;
     private static final long MINUTE_MS = 60_000L;
     private static final long STATS_MS = 10_000L;
+    /** fix_time_on_wake: how long Android's own NTP sync gets after a wake before the launcher steps in. */
+    private static final long WAKE_FIX_DELAY_MS = 20_000L;
+    /** A second look when the clock is right but the network has not validated yet. */
+    private static final long WAKE_FIX_RETRY_MS = 15_000L;
+    /** At most one fix_time_on_wake Wi-Fi restart this often, so a stale network cannot cycle the radio. */
+    private static final long WAKE_FIX_GAP_MS = 10 * MINUTE_MS;
     /**
      * 2025-01-01. TVs without a clock battery boot at the epoch (08:00 in China) and keep it until network
      * time arrives; the clock, date and greeting stay hidden before then.
@@ -126,6 +132,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private long idleClockMs;
     /** Back on Home opens ClockActivity (config.xml, back_opens_clock). */
     private boolean backOpensClock;
+    /** After a wake, re-arm automatic time and restart Wi-Fi once when the clock or network is still wrong
+     *  (config.xml / theme fix_time_on_wake). */
+    private boolean fixTimeOnWake;
+    /** The clock looked right but the network had not validated: the second, final look already ran. */
+    private boolean wakeTimeRetried;
+    /** SystemClock.elapsedRealtime() of the last fix_time_on_wake Wi-Fi restart, 0 until there is one. */
+    private long lastWifiKick;
+    private final Runnable wakeTimeCheck = this::checkTimeAfterWake;
     private final Runnable showIdleClock = () -> startActivity(new Intent(this, ClockActivity.class));
     private String liveTvAction;
     private String liveTvInputId;
@@ -506,6 +520,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         homeIgnoreChannelKeys = cfg.homeIgnoreChannelKeys;
         idleClockMs = cfg.homeIdleClockMinutes * MINUTE_MS;
         backOpensClock = cfg.backOpensClock;
+        fixTimeOnWake = cfg.fixTimeOnWake;
         bootToLiveTv = cfg.bootToLiveTv;
         openOnStartChoice = cfg.openOnStartChoice;
         openOnStartWaitMs = cfg.openOnStartNetworkWait * 1000L;
@@ -1214,6 +1229,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (gameDay != null) gameDay.start();
         sky.update();
         wallpaperPlayer.start();
+        restartWakeTimeCheck();
         handler.postDelayed(minuteTick, MINUTE_MS);
         if (festive && lamp != null) {
             lamp.start();
@@ -1385,6 +1401,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (resumed && idleClockMs > 0) root.postDelayed(showIdleClock, idleClockMs);
     }
 
+    /** fix_time_on_wake: one check after each resume, never while Home is in the background. */
+    private void restartWakeTimeCheck() {
+        handler.removeCallbacks(wakeTimeCheck);
+        wakeTimeRetried = false;
+        if (fixTimeOnWake) handler.postDelayed(wakeTimeCheck, WAKE_FIX_DELAY_MS);
+    }
+
     @Override
     protected void onPause() {
         super.onPause();
@@ -1404,6 +1427,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         heroArt.animate().cancel();
         handler.removeCallbacks(minuteTick);
         handler.removeCallbacks(openWhenOnline);
+        handler.removeCallbacks(wakeTimeCheck);
         startPending = null;   // leaving Home before the network came back: the boot's app stays closed
         stopStats();
         if (gameDay != null) gameDay.stop();
@@ -2818,6 +2842,62 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         } else {
             handler.postDelayed(clockCheck, 1_000L);
         }
+    }
+
+    /**
+     * fix_time_on_wake. An app cannot set the system clock: SET_TIME is signature|privileged, so even adb's
+     * pm grant refuses it. On a TV whose RTC does not survive a power cut, every boot starts at the firmware's
+     * build date, and with strict Private DNS that date also blocks DNS-over-TLS — so Android's own NTP cannot
+     * resolve its server, the network shows as connected while apps see no internet, and the header stays hidden.
+     * Give Android's own sync a moment, re-arm automatic time where WRITE_SECURE_SETTINGS was granted, and if the
+     * clock is still wrong restart Wi-Fi once: the same switch that fixes it by hand.
+     */
+    private void checkTimeAfterWake() {
+        if (!fixTimeOnWake || !resumed) return;
+        boolean valid = System.currentTimeMillis() >= TIME_VALID_AFTER_MS;
+        if (valid && networkValidated()) return;
+        try {
+            Settings.Global.putInt(getContentResolver(), Settings.Global.AUTO_TIME, 1);
+        } catch (SecurityException ignored) {
+            // No WRITE_SECURE_SETTINGS grant: the Wi-Fi restart below still wakes the system's time service.
+        }
+        // The clock is right but Android has not validated the network yet: one more look before the radio goes
+        // down, so an ordinary wake never drops Wi-Fi.
+        if (valid && !wakeTimeRetried) {
+            wakeTimeRetried = true;
+            handler.postDelayed(wakeTimeCheck, WAKE_FIX_RETRY_MS);
+            return;
+        }
+        long now = SystemClock.elapsedRealtime();
+        if (lastWifiKick != 0 && now - lastWifiKick < WAKE_FIX_GAP_MS) return;
+        if (restartWifi()) lastWifiKick = now;
+    }
+
+    /** True when Android considers the active network to reach the internet. */
+    private boolean networkValidated() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        if (cm == null) return false;
+        Network network = cm.getActiveNetwork();
+        if (network == null) return false;
+        NetworkCapabilities caps = cm.getNetworkCapabilities(network);
+        return caps != null && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+    }
+
+    /** Wi-Fi off and on again, as the TV's own switch does; true when a restart started. */
+    @SuppressWarnings("deprecation")
+    private boolean restartWifi() {
+        // Android 10+ ignores setWifiEnabled for apps; this fork is for the Mi TV 4S (Android 9).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) return false;
+        WifiManager wifi = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+        if (wifi == null || !wifi.isWifiEnabled()) return false;
+        WifiInfo info = wifi.getConnectionInfo();
+        if (info == null || info.getNetworkId() == -1) return false;   // not joined to a network
+        wifi.setWifiEnabled(false);
+        handler.postDelayed(() -> {
+            WifiManager again = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+            if (again != null) again.setWifiEnabled(true);
+        }, 2_000L);
+        return true;
     }
 
     private void updateGreeting() {
