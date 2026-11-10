@@ -15,6 +15,7 @@
   "launcher_settings_button": true,
   "icon_only_buttons": true,
   "wifi_status_color": true,
+  "wifi_status_warnings": true,
   "fade_rows": true,
   "fix_time_on_wake": true,
   "fix_time_delay_seconds": 10

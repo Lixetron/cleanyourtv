@@ -219,6 +219,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private TextView btnWifi;
     /** The connected Wi-Fi network's name above the pills, at the greeting's line. */
     private TextView wifiName;
+    /** The spinner/check/warning badge after the Wi-Fi name (fix_time_on_wake and wifi_status_warnings). */
+    private NetworkStatusDrawable wifiStatus;
+    /** True while the wake-time probe runs, and after it found no internet until a later probe or validation. */
+    private boolean networkProbeRunning, networkProbeFailed;
+    /** The name's normal green and the warning orange, from the same colours as the Wi-Fi pill. */
+    private int wifiNameOnlineColor, wifiNameWarningColor;
     /** Whether wifiName carries the VPN shield, so a refresh that changes nothing does not reset its drawables. */
     private boolean wifiNameVpn;
     /** The network pill's icon as last set, so a refresh that changes nothing does not lay the top bar out again. */
@@ -425,6 +431,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             boolean validated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
             // open_on_start_network_wait: the boot's app opens on the first validated network.
             if (validated && startPending != null) handler.post(openWhenOnline);
+            // A reconnect that validates again ends the wake-time probe's warning; the stale state that started
+            // it never produced this callback, so this cannot hide a network that is still down.
+            if (validated && networkProbeFailed) {
+                networkProbeFailed = false;
+                handler.post(MainActivity.this::updateWifiLabel);
+            }
             if (validated == lastValidated) return;
             lastValidated = validated;
             if (wifiNoInternetTint != null) handler.post(MainActivity.this::updateWifiLabel);
@@ -631,6 +643,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         btnWifi = findViewById(R.id.btnWifi);
         wifiName = findViewById(R.id.wifiName);
+        wifiNameOnlineColor = getColorStateList(R.color.pill_icon_online).getDefaultColor();
+        wifiNameWarningColor = getColorStateList(R.color.pill_icon_no_internet).getDefaultColor();
+        wifiStatus = new NetworkStatusDrawable(this, density);
+        wifiName.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, wifiStatus, null);
         shamsiDate = findViewById(R.id.shamsiDate);
         stats = findViewById(R.id.stats);
         raceCalendar = cfg.raceCalendar;
@@ -1526,6 +1542,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         unregisterReceiver(packageReceiver);
         if (openOnStartOnWake) unregisterReceiver(wakeReceiver);
         wallpaperPlayer.close();
+        if (wifiStatus != null) wifiStatus.stop();
         ConnectivityManager cm = getSystemService(ConnectivityManager.class);
         TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
         if (tim != null) tim.unregisterCallback(inputCallback);
@@ -2885,7 +2902,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         boolean validated = networkValidated();
         Log.i(TAG, "fix_time_on_wake: check valid=" + valid + " validated=" + validated);
         if (valid && validated) {
-            probeThenKick();
+            probeThenKick(false);
             return;
         }
         try {
@@ -2900,18 +2917,21 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             handler.postDelayed(wakeTimeCheck, WAKE_FIX_RETRY_MS);
             return;
         }
-        kickWifiIfAllowed();
+        kickWifiIfAllowed(false);
     }
 
     /**
      * Android can keep reporting the network as validated after a long standby while nothing actually resolves;
      * the first check saw exactly that, so a real answer is asked for off the UI thread. The weather host is the
      * probe: this TV reaches it for the weather line, so a failure there is the network, not a blocked server.
+     * The badge after the Wi-Fi name spins until the answer, then shows a fading check or the orange warning.
      */
-    private void probeThenKick() {
+    private void probeThenKick(boolean force) {
         long now = SystemClock.elapsedRealtime();
-        if (now - lastProbeAt < WAKE_PROBE_GAP_MS) return;
+        if (!force && now - lastProbeAt < WAKE_PROBE_GAP_MS) return;
         lastProbeAt = now;
+        networkProbeRunning = true;
+        if (wifiStatus != null) wifiStatus.showChecking();
         Thread probe = new Thread(() -> {
             boolean reachable = false;
             HttpURLConnection connection = null;
@@ -2930,8 +2950,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
             boolean answered = reachable;
             runOnUiThread(() -> {
+                networkProbeRunning = false;
+                networkProbeFailed = !answered;
                 Log.i(TAG, "fix_time_on_wake: probe reachable=" + answered);
-                if (!answered && resumed) kickWifiIfAllowed();
+                if (wifiStatus != null) {
+                    if (answered) wifiStatus.showOk();
+                    else wifiStatus.showWarning();
+                }
+                updateWifiLabel();
+                if (!answered && resumed) kickWifiIfAllowed(true);
             });
         }, "wake-probe");
         probe.setDaemon(true);
@@ -2939,12 +2966,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     /** One Wi-Fi restart at most every WAKE_FIX_GAP_MS; also skipped when not joined to a network. */
-    private void kickWifiIfAllowed() {
+    private void kickWifiIfAllowed(boolean recheck) {
         long now = SystemClock.elapsedRealtime();
         if (lastWifiKick != 0 && now - lastWifiKick < WAKE_FIX_GAP_MS) return;
         if (restartWifi()) {
             lastWifiKick = now;
             Log.i(TAG, "fix_time_on_wake: restarting Wi-Fi");
+            // After a restart, look again once the link is back: this is what clears the orange warning.
+            if (recheck) handler.postDelayed(() -> {
+                if (resumed) probeThenKick(true);
+            }, 20_000L);
         }
     }
 
@@ -3230,19 +3261,33 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
         } catch (Exception ignored) {
         }
+        // Connected without internet: the name and the Wi-Fi icon turn orange and a warning triangle joins the
+        // name (wifi_status_warnings). The probe catches a network Android still calls validated after standby.
+        boolean warned = online && (!validated || networkProbeFailed) && wifiNoInternetTint != null;
         // The network's name above the pills, green like the Wi-Fi icon (wifi_status_color). Hidden while
         // the TV is offline or on Ethernet.
         if (wifiName != null) {
             if (wifiConnected && ssidName != null) {
                 wifiName.setText(ssidName);
+                wifiName.setTextColor(warned ? wifiNameWarningColor : wifiNameOnlineColor);
                 // While a VPN is up, a small shield before the name shows that the traffic goes through it.
                 if (wifiNameVpn != vpn) {
                     wifiNameVpn = vpn;
-                    wifiName.setCompoundDrawablesRelativeWithIntrinsicBounds(vpn ? R.drawable.ic_vpn : 0, 0, 0, 0);
+                    wifiName.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                            vpn ? getDrawable(R.drawable.ic_vpn) : null, null, wifiStatus, null);
                 }
                 wifiName.setVisibility(View.VISIBLE);
             } else {
                 wifiName.setVisibility(View.GONE);
+            }
+        }
+        if (wifiStatus != null) {
+            if (networkProbeRunning) {
+                // The probe handler owns the spinner until it answers.
+            } else if (warned) {
+                wifiStatus.showWarning();
+            } else {
+                wifiStatus.clearWarning();
             }
         }
         // With a VPN app configured, a VPN that is down matters too: show a red "VPN off" capsule then.
@@ -3290,8 +3335,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 btnWifi.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0);
             }
             ColorStateList tint = online ? wifiOnlineTint : wifiPlainTint;
-            // wifi_status_warnings: orange while connected but not validated (a captive portal), red while offline.
-            if (wifiNoInternetTint != null) tint = !online ? wifiOfflineTint : validated ? wifiOnlineTint : wifiNoInternetTint;
+            // wifi_status_warnings: orange while connected but not validated (a captive portal) or while the
+            // wake-time probe found no answer, red while offline.
+            if (wifiNoInternetTint != null) {
+                tint = !online ? wifiOfflineTint
+                        : validated && !networkProbeFailed ? wifiOnlineTint : wifiNoInternetTint;
+            }
             if (wifiOnlineTint != null && btnWifi.getCompoundDrawableTintList() != tint) {
                 btnWifi.setCompoundDrawableTintList(tint);
             }
