@@ -52,6 +52,7 @@ import android.text.Spanned;
 import android.text.TextPaint;
 import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -79,6 +80,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -95,6 +98,7 @@ import java.util.Set;
  * tvOS style home: black, a pinned dock row, an app grid, and one glass highlight that springs between tiles.
  */
 public class MainActivity extends Activity implements AppAdapter.TileListener {
+    private static final String TAG = "TvHome";
     @Override
     protected void attachBaseContext(android.content.Context base) {
         super.attachBaseContext(LauncherLocale.wrap(base));   // locale
@@ -117,6 +121,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private static final long WAKE_FIX_RETRY_MS = 15_000L;
     /** At most one fix_time_on_wake Wi-Fi restart this often, so a stale network cannot cycle the radio. */
     private static final long WAKE_FIX_GAP_MS = 10 * MINUTE_MS;
+    /** At most one real connectivity probe this often: Android can keep reporting a stale network as validated. */
+    private static final long WAKE_PROBE_GAP_MS = 5 * MINUTE_MS;
+    /** A probe that has not answered by then counts as no internet. */
+    private static final int WAKE_PROBE_TIMEOUT_MS = 4_000;
+    /** The same host the weather line uses, so a probe cannot fail on a host this TV cannot reach anyway. */
+    private static final String WAKE_PROBE_URL = "https://api.met.no/";
     /**
      * 2025-01-01. TVs without a clock battery boot at the epoch (08:00 in China) and keep it until network
      * time arrives; the clock, date and greeting stay hidden before then.
@@ -139,6 +149,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean wakeTimeRetried;
     /** SystemClock.elapsedRealtime() of the last fix_time_on_wake Wi-Fi restart, 0 until there is one. */
     private long lastWifiKick;
+    /** SystemClock.elapsedRealtime() of the last real connectivity probe, 0 until there is one. */
+    private long lastProbeAt;
     private final Runnable wakeTimeCheck = this::checkTimeAfterWake;
     private final Runnable showIdleClock = () -> startActivity(new Intent(this, ClockActivity.class));
     private String liveTvAction;
@@ -462,6 +474,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         public void onReceive(Context context, Intent intent) {
             updateClockVisibility();
             clockRefresh.start();   // the wall clock was set: line the redraw up with the new minute
+        }
+    };
+    /**
+     * fix_time_on_wake: some firmware turns the screen off in standby without pausing Home, so onResume never
+     * runs on the way back. The screen-on broadcast still arrives while Home is started.
+     */
+    private final IntentFilter screenFilter = new IntentFilter(Intent.ACTION_SCREEN_ON);
+    private final BroadcastReceiver screenReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            restartWakeTimeCheck();
         }
     };
     /** Keeps the Home clocks moving on Android before 12 when the firmware stops ACTION_TIME_TICK (see ClockRefresh). */
@@ -1166,8 +1189,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         started = true;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(timeReceiver, timeFilter, Context.RECEIVER_NOT_EXPORTED);
+            registerReceiver(screenReceiver, screenFilter, Context.RECEIVER_NOT_EXPORTED);
         } else {
             registerReceiver(timeReceiver, timeFilter);
+            registerReceiver(screenReceiver, screenFilter);
         }
         updateClockVisibility();
         clockRefresh.start();   // with timeReceiver: while Home is visible, paused or not
@@ -1451,6 +1476,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         super.onStop();
         started = false;
         unregisterReceiver(timeReceiver);
+        unregisterReceiver(screenReceiver);
         clockRefresh.stop();
         handler.removeCallbacks(clockCheck);
         stopped = true;
@@ -2856,7 +2882,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private void checkTimeAfterWake() {
         if (!fixTimeOnWake || !resumed) return;
         boolean valid = System.currentTimeMillis() >= TIME_VALID_AFTER_MS;
-        if (valid && networkValidated()) return;
+        boolean validated = networkValidated();
+        Log.i(TAG, "fix_time_on_wake: check valid=" + valid + " validated=" + validated);
+        if (valid && validated) {
+            probeThenKick();
+            return;
+        }
         try {
             Settings.Global.putInt(getContentResolver(), Settings.Global.AUTO_TIME, 1);
         } catch (SecurityException ignored) {
@@ -2869,9 +2900,52 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             handler.postDelayed(wakeTimeCheck, WAKE_FIX_RETRY_MS);
             return;
         }
+        kickWifiIfAllowed();
+    }
+
+    /**
+     * Android can keep reporting the network as validated after a long standby while nothing actually resolves;
+     * the first check saw exactly that, so a real answer is asked for off the UI thread. The weather host is the
+     * probe: this TV reaches it for the weather line, so a failure there is the network, not a blocked server.
+     */
+    private void probeThenKick() {
+        long now = SystemClock.elapsedRealtime();
+        if (now - lastProbeAt < WAKE_PROBE_GAP_MS) return;
+        lastProbeAt = now;
+        Thread probe = new Thread(() -> {
+            boolean reachable = false;
+            HttpURLConnection connection = null;
+            try {
+                connection = (HttpURLConnection) new URL(WAKE_PROBE_URL).openConnection();
+                connection.setConnectTimeout(WAKE_PROBE_TIMEOUT_MS);
+                connection.setReadTimeout(WAKE_PROBE_TIMEOUT_MS);
+                connection.setUseCaches(false);
+                connection.setRequestProperty("User-Agent", "CleanYourTV-Home/1.0 (https://github.com/Gathin23/cleanyourtv)");
+                // Any HTTP answer means DNS, a route and a socket worked; the server's own status does not matter.
+                reachable = connection.getResponseCode() > 0;
+            } catch (IOException | RuntimeException ignored) {
+                // No route, no DNS or no TLS: the network is not usable, whatever Android still reports.
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+            boolean answered = reachable;
+            runOnUiThread(() -> {
+                Log.i(TAG, "fix_time_on_wake: probe reachable=" + answered);
+                if (!answered && resumed) kickWifiIfAllowed();
+            });
+        }, "wake-probe");
+        probe.setDaemon(true);
+        probe.start();
+    }
+
+    /** One Wi-Fi restart at most every WAKE_FIX_GAP_MS; also skipped when not joined to a network. */
+    private void kickWifiIfAllowed() {
         long now = SystemClock.elapsedRealtime();
         if (lastWifiKick != 0 && now - lastWifiKick < WAKE_FIX_GAP_MS) return;
-        if (restartWifi()) lastWifiKick = now;
+        if (restartWifi()) {
+            lastWifiKick = now;
+            Log.i(TAG, "fix_time_on_wake: restarting Wi-Fi");
+        }
     }
 
     /** True when Android considers the active network to reach the internet. */

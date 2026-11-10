@@ -60,8 +60,9 @@ The launcher's own page has these rows, top to bottom:
 - **Clock screensaver**: Off, or how many minutes Home may sit untouched before the clock appears:
   1, 2, 5, 10, 15, 20, 30 or 60 (`home_idle_clock_minutes` in a theme).
 - **Recover time after wake** on or off (`fix_time_on_wake`): after a boot or a wake, if the clock is still
-  the firmware build date (a TV with no working clock battery), Home re-arms automatic time and restarts
-  Wi-Fi once. An app cannot set the clock itself; this only clears the way for Android's own sync.
+  the firmware build date (a TV with no working clock battery), Home re-arms automatic time; if a real
+  request to the weather host then fails, it restarts Wi-Fi once. An app cannot set the clock itself; this
+  only clears the way for Android's own sync and for a network Android still calls connected.
 - **Wi-Fi restart after** 5, 10, 15, 20 or 30 seconds (`fix_time_delay_seconds`), how long that check waits;
   only with Recover time after wake on. Android's own sync needs about 8 seconds after the screen comes on,
   so 5 can be too early at boot.
