@@ -31,6 +31,9 @@ public class InputKeyService extends AccessibilityService {
     private Map<Integer, String> appScancodes = Collections.emptyMap();
     private Map<Integer, String> holdAppKeys = Collections.emptyMap();
     private Map<Integer, String> holdAppScancodes = Collections.emptyMap();
+    /** app_keys "front:" entries, chosen the way HomeKeyService chooses them (RemoteKeys.tap). */
+    private Map<Integer, String> frontAppKeys = Collections.emptyMap();
+    private Map<Integer, String> frontAppScancodes = Collections.emptyMap();
     /** live_tv_package: where a tap on the TV/Input button goes while Home is in front. */
     private String liveTvPackage = "";
     /** The pending hold of the TV/Input button: after HOLD_MS it opens Home's own Inputs menu. */
@@ -43,10 +46,13 @@ public class InputKeyService extends AccessibilityService {
     private boolean consumeVolumeKeys;
     /** Stops key filtering while a game controller is connected; null unless gamepad_passthrough and key_filter. */
     private GamepadPassthrough gamepads;
+    /** The bound helper, for global actions Home's own key path asks for (RemoteKeys). */
+    static InputKeyService running;
 
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
+        running = this;
         // From config.xml or a theme's config.json; theme.sh rebinds this service after a push.
         Config config = Config.load(this);
         // restore_key_services: note that this helper runs, so Home can put it back after a force stop.
@@ -61,6 +67,8 @@ public class InputKeyService extends AccessibilityService {
         RemoteKeys.applyKeyFilter(this, config.keyFilter);
         holdAppKeys = RemoteKeys.parseHoldAppKeys(config.appKeys);
         holdAppScancodes = RemoteKeys.parseHoldAppScancodes(config.appKeys);
+        frontAppKeys = RemoteKeys.parseFrontAppKeys(config.appKeys);
+        frontAppScancodes = RemoteKeys.parseFrontAppScancodes(config.appKeys);
         // gamepad_passthrough, off by default. Only with key_filter on: off, the service never filters keys.
         if (config.gamepadPassthrough && config.keyFilter && gamepads == null) {
             gamepads = new GamepadPassthrough(this);
@@ -138,9 +146,11 @@ public class InputKeyService extends AccessibilityService {
     protected boolean onKeyEvent(KeyEvent event) {
         if (consumeVolumeKeys && VolumeKeys.handle(this, event)) return true;
         // A scancode entry is more specific than any keycode, so it goes first.
-        if (RemoteKeys.handle(this, event, appScancodes.get(event.getScanCode()),
+        if (RemoteKeys.handle(this, event, RemoteKeys.tap(appScancodes.get(event.getScanCode()),
+                frontAppScancodes.get(event.getScanCode())),
                 holdAppScancodes.get(event.getScanCode()))) return true;
-        if (RemoteKeys.handle(this, event, appKeys.get(event.getKeyCode()),
+        if (RemoteKeys.handle(this, event, RemoteKeys.tap(appKeys.get(event.getKeyCode()),
+                frontAppKeys.get(event.getKeyCode())),
                 holdAppKeys.get(event.getKeyCode()))) return true;
         if (isHomeInputKey(event.getKeyCode())) {
             // On Home the remote's Live TV/Input button becomes the launcher's: a tap opens Live TV, a hold opens
@@ -169,6 +179,7 @@ public class InputKeyService extends AccessibilityService {
 
     @Override
     public void onDestroy() {
+        if (running == this) running = null;
         RemoteKeys.release(this);
         releaseHold();
         if (gamepads != null) gamepads.stop();
