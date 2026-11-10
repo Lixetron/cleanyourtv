@@ -51,7 +51,7 @@ JDK 17 and Android SDK 34 (platform 34, build-tools 34.0.0), then:
 
 ```powershell
 $env:JAVA_HOME = 'C:\Program Files\Amazon Corretto\jdk17.0.16_8'
-$env:ANDROID_HOME = 'S:\projects\lixetron\clean-tv\.tools\android-sdk'
+$env:ANDROID_HOME = 'C:\android-tools\android-sdk'
 python -m venv tools\venv
 tools\venv\Scripts\python.exe -m pip install -r tools\requirements.txt
 
@@ -84,7 +84,8 @@ because FairPlay cannot be decrypted.
 ```bash
 git remote add upstream https://github.com/Gathin23/cleanyourtv.git   # already added here
 git fetch upstream
-git merge upstream/main        # on this branch, resolve conflicts in MainActivity by hand
+git merge upstream/main        # on this branch: InputKeyService.java conflicts (this fork's hold_input_keycodes
+                               # alongside upstream's app_keys front: entries); keep both blocks
 ```
 
 ## Publishing this fork

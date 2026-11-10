@@ -31,7 +31,7 @@ AOSP one, which has no Account & Security page - where the ADB switch lives - wh
 launcher's Settings button would open it. Xiaomi's own entry,
 `com.xiaomi.mitv.settings/.entry.MainActivity`, opens the native settings main page.
 
-The Settings long-press menu offers it as **Native settings** - the row is there while one of the
+The Settings long-press menu offers it as **TV system settings** - the row is there while one of the
 `settings_fallback_components` entries is installed - so the vendor app is one press away regardless of
 what the standard action resolves to. Its Account & Security page is also reachable directly:
 `com.xiaomi.mitv.settings/.entry.SecurityActivity`.
@@ -41,5 +41,5 @@ what the standard action resolves to. Its Account & Security page is also reacha
 - ADB stays enabled across standby; the port needs about 8 seconds to come back after a wake.
 - The voice remote's "open settings" opens Xiaomi's own settings app, not the AOSP one.
 
-![Settings long-press menu with the Native settings row](native-settings-menu.png)
+![Settings long-press menu with the TV system settings row](native-settings-menu.png)
 ![Xiaomi's native settings main page](native-settings.png)

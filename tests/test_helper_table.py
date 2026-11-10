@@ -33,9 +33,11 @@ JAVA = ROOT / "launcher" / "app" / "src" / "main" / "java" / "com" / "gathin" / 
 ROWS = {"Home button": "HomeKeyService", "Input button": "InputKeyService"}
 
 # Keycodes a helper takes without any config entry, and the method in which it checks each one.
+# InputKeyService checks the TV/Input pair in isTvKey(), which onKeyEvent, isInputKey() and the
+# hold_input_keycodes path all go through.
 FIXED_KEYS = {
     "HomeKeyService": {"KEYCODE_ALL_APPS": "onKeyEvent", "KEYCODE_SETTINGS": "isSettingsKey"},
-    "InputKeyService": {"KEYCODE_TV": "isInputKey", "KEYCODE_TV_INPUT": "isInputKey"},
+    "InputKeyService": {"KEYCODE_TV": "isTvKey", "KEYCODE_TV_INPUT": "isTvKey"},
 }
 
 RESOURCE_ARRAY = re.compile(r"R\.array\.(\w+)")

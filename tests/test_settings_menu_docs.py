@@ -84,8 +84,8 @@ class SettingsMenuDocumentedTest(unittest.TestCase):
     def test_the_menu_still_offers_the_vendor_settings_app(self):
         # The subject of this file: without this row there is no route to Account & Security on a set
         # whose Settings action resolves to the Android app.
-        self.assertIn("native_settings", menu_rows(self.body),
-                      "showSettingsMenu() no longer adds a Native settings row: this page and the note are stale")
+        self.assertIn("tv_settings", menu_rows(self.body),
+                      "showSettingsMenu() no longer adds a TV system settings row: this page and the note are stale")
 
     def test_every_menu_row_is_named_in_the_readme_block(self):
         rows = menu_rows(self.body)
@@ -99,7 +99,7 @@ class SettingsMenuDocumentedTest(unittest.TestCase):
 
     def test_the_vendor_note_names_the_row_and_reads_on_its_own(self):
         note = VENDOR_NOTE.read_text(encoding="utf-8")
-        text = string_text("native_settings", self.xml)
+        text = string_text("tv_settings", self.xml)
         self.assertIn(text, note, f"the note no longer names the {text!r} row")
         self.assertNotIn("pull request", note.lower(),
                          "the note sends a reader to a pull request; say what the merged menu does instead")
@@ -125,10 +125,10 @@ class MenuReaderTest(unittest.TestCase):
         self.assertEqual(menu_rows(body), [])
 
     def test_the_real_menu_is_read(self):
-        # Six rows today: launcher settings, native settings, module cards, dock edit, reorder, restart.
+        # Six rows today: launcher settings, TV system settings, module cards, dock edit, reorder, restart.
         body = method_body(MAIN_ACTIVITY.read_text(encoding="utf-8"))
         self.assertEqual(menu_rows(body),
-                         ["launcher_settings", "native_settings", "module_cards", "dock_edit", "reorder",
+                         ["launcher_settings", "tv_settings", "module_cards", "dock_edit", "reorder",
                           "power_menu"])
 
     def test_a_row_with_no_string_is_reported(self):

@@ -29,8 +29,10 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 import manage  # noqa: E402
 
-# The two keys the Keys table gives the `list of keycodes` cell, and the sentence both rows now carry.
-KEYCODE_KEYS = {"settings_key_keycodes", "input_key_keycodes"}
+# The keys the Keys table gives the `list of keycodes` cell, and the sentence every row now carries.
+# `hold_input_keycodes` is this fork's own list (on Home a tap opens Live TV, a hold opens Inputs), read by
+# InputKeyService the same way, so it is held to the same rule.
+KEYCODE_KEYS = {"settings_key_keycodes", "input_key_keycodes", "hold_input_keycodes"}
 
 
 class KeycodeListTest(unittest.TestCase):
@@ -147,7 +149,7 @@ class KeysTableTest(unittest.TestCase):
     def keycode_rows(self):
         return {item["id"]: item for item in manage.switches() if (item.get("type") or "").strip() == manage.KEYCODES}
 
-    def test_the_shipped_keycode_rows_are_the_two_keys(self):
+    def test_the_shipped_keycode_rows_are_the_guarded_keys(self):
         # A key added to the table with this cell joins the refusal above; one that moves off it stops being read
         # this way, so the set of keys is pinned here rather than assumed.
         self.assertEqual(KEYCODE_KEYS, set(self.keycode_rows()))
