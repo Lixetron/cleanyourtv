@@ -125,6 +125,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private static final long WAKE_PROBE_GAP_MS = 5 * MINUTE_MS;
     /** A probe that has not answered by then counts as no internet. */
     private static final int WAKE_PROBE_TIMEOUT_MS = 4_000;
+    /** A probe is given up on after this, whatever its own socket timeouts do: DNS resolution ignores them. */
+    private static final long WAKE_PROBE_DEADLINE_MS = 5_000L;
     /** The same host the weather line uses, so a probe cannot fail on a host this TV cannot reach anyway. */
     private static final String WAKE_PROBE_URL = "https://api.met.no/";
     /**
@@ -223,6 +225,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private NetworkStatusDrawable wifiStatus;
     /** True while the wake-time probe runs, and after it found no internet until a later probe or validation. */
     private boolean networkProbeRunning, networkProbeFailed;
+    /** A new probe invalidates any earlier probe's watchdog or late answer. */
+    private int probeToken;
     /** The name's normal green and the warning orange, from the same colours as the Wi-Fi pill. */
     private int wifiNameOnlineColor, wifiNameWarningColor;
     /** Whether wifiName carries the VPN shield, so a refresh that changes nothing does not reset its drawables. */
@@ -2936,8 +2940,20 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         long now = SystemClock.elapsedRealtime();
         if (!force && now - lastProbeAt < WAKE_PROBE_GAP_MS) return;
         lastProbeAt = now;
+        final int token = ++probeToken;
         networkProbeRunning = true;
         if (wifiStatus != null) wifiStatus.showChecking();
+        // DNS resolution ignores the socket timeouts and can block for minutes with a broken resolver, so the
+        // watchdog below is the real deadline: no answer by then means no internet, and Wi-Fi is restarted.
+        handler.postDelayed(() -> {
+            if (probeToken != token || !networkProbeRunning) return;
+            networkProbeRunning = false;
+            networkProbeFailed = true;
+            Log.i(TAG, "fix_time_on_wake: probe timed out, restarting Wi-Fi");
+            if (wifiStatus != null) wifiStatus.showWarning();
+            updateWifiLabel();
+            if (resumed) kickWifiIfAllowed(true);
+        }, WAKE_PROBE_DEADLINE_MS);
         Thread probe = new Thread(() -> {
             boolean reachable = false;
             HttpURLConnection connection = null;
@@ -2956,6 +2972,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
             boolean answered = reachable;
             runOnUiThread(() -> {
+                if (probeToken != token) return;   // the watchdog, or a newer probe, already took over
                 networkProbeRunning = false;
                 networkProbeFailed = !answered;
                 Log.i(TAG, "fix_time_on_wake: probe reachable=" + answered);

@@ -35,8 +35,8 @@ plus the weather line under the clock.
   standby Android can keep the stale network marked as connected. Home waits `fix_time_delay_seconds` (10 s
   in this theme; 5, 10, 15, 20 or 30 in Launcher settings) after a wake or boot, re-arms `auto_time` where
   the install script granted `WRITE_SECURE_SETTINGS`, and if the clock is wrong or a real request to the
-  weather host fails, restarts Wi-Fi once — the same switch that fixes it by hand. Off by default; this
-  fork's theme turns it on.
+  weather host fails (or does not answer within 5 seconds, since DNS ignores socket timeouts), restarts
+  Wi-Fi once — the same switch that fixes it by hand. Off by default; this fork's theme turns it on.
 - On Home, holding the Xiaomi MI/PatchWall button (the XMRM-007 remote's, `KEYCODE_BUTTON_4`/191) opens the
   Inputs menu; a tap still opens Live TV/last source. The helper runs from `InputKeyService`, which the
   install script now enables (`-InputKeyService`), and the keycode list is `hold_input_keycodes` in
