@@ -118,7 +118,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private static final long MINUTE_MS = 60_000L;
     private static final long STATS_MS = 10_000L;
     /** A second look when the clock is right but the network has not validated yet. */
-    private static final long WAKE_FIX_RETRY_MS = 15_000L;
+    private static final long WAKE_FIX_RETRY_MS = 8_000L;
+    /** At boot the clock is the build date until NTP answers (about 8 s here); the radio waits this much longer. */
+    private static final long WAKE_CLOCK_GRACE_MS = 8_000L;
     /** At most one fix_time_on_wake Wi-Fi restart this often, so a stale network cannot cycle the radio. */
     private static final long WAKE_FIX_GAP_MS = 10 * MINUTE_MS;
     /** At most one real connectivity probe this often: Android can keep reporting a stale network as validated. */
@@ -126,7 +128,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** A probe that has not answered by then counts as no internet. */
     private static final int WAKE_PROBE_TIMEOUT_MS = 4_000;
     /** A probe is given up on after this, whatever its own socket timeouts do: DNS resolution ignores them. */
-    private static final long WAKE_PROBE_DEADLINE_MS = 5_000L;
+    private static final long WAKE_PROBE_DEADLINE_MS = 3_000L;
     /** The same host the weather line uses, so a probe cannot fail on a host this TV cannot reach anyway. */
     private static final String WAKE_PROBE_URL = "https://api.met.no/";
     /**
@@ -153,6 +155,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private long lastWifiKick;
     /** SystemClock.elapsedRealtime() of the last real connectivity probe, 0 until there is one. */
     private long lastProbeAt;
+    /** When the pending wake-time check is due, 0 when none is; a screen-on schedule is never postponed. */
+    private long wakeCheckDueAt;
     private final Runnable wakeTimeCheck = this::checkTimeAfterWake;
     private final Runnable showIdleClock = () -> startActivity(new Intent(this, ClockActivity.class));
     private String liveTvAction;
@@ -502,7 +506,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private final BroadcastReceiver screenReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            restartWakeTimeCheck();
+            restartWakeTimeCheck(true);
         }
     };
     /** Keeps the Home clocks moving on Android before 12 when the firmware stops ACTION_TIME_TICK (see ClockRefresh). */
@@ -1452,9 +1456,32 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** fix_time_on_wake: one check after each resume, never while Home is in the background. */
     private void restartWakeTimeCheck() {
+        restartWakeTimeCheck(false);
+    }
+
+    /**
+     * fix_time_on_wake: the screen-on event is the later of the two on this firmware and owns the delay; a resume
+     * that arrives after it must not postpone the check by another full delay. A screen-on always re-arms it.
+     */
+    private void restartWakeTimeCheck(boolean screenOn) {
+        long now = SystemClock.elapsedRealtime();
+        if (!fixTimeOnWake) {
+            handler.removeCallbacks(wakeTimeCheck);
+            wakeCheckDueAt = 0;
+            return;
+        }
+        if (!screenOn && wakeCheckDueAt > now) return;   // the screen-on event already armed it
         handler.removeCallbacks(wakeTimeCheck);
         wakeTimeRetried = false;
-        if (fixTimeOnWake) handler.postDelayed(wakeTimeCheck, wakeFixDelayMs);
+        wakeCheckDueAt = now + wakeFixDelayMs;
+        handler.postDelayed(wakeTimeCheck, wakeFixDelayMs);
+    }
+
+    /** Re-arms the check after a grace, for the boot clock and for a network that has not validated yet. */
+    private void scheduleWakeCheck(long delayMs) {
+        wakeCheckDueAt = SystemClock.elapsedRealtime() + delayMs;
+        handler.removeCallbacks(wakeTimeCheck);
+        handler.postDelayed(wakeTimeCheck, delayMs);
     }
 
     @Override
@@ -1477,6 +1504,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         handler.removeCallbacks(minuteTick);
         handler.removeCallbacks(openWhenOnline);
         handler.removeCallbacks(wakeTimeCheck);
+        wakeCheckDueAt = 0;
         startPending = null;   // leaving Home before the network came back: the boot's app stays closed
         stopStats();
         if (gameDay != null) gameDay.stop();
@@ -2908,6 +2936,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      */
     private void checkTimeAfterWake() {
         if (!fixTimeOnWake || !resumed) return;
+        wakeCheckDueAt = 0;
         boolean valid = System.currentTimeMillis() >= TIME_VALID_AFTER_MS;
         boolean validated = networkValidated();
         Log.i(TAG, "fix_time_on_wake: check valid=" + valid + " validated=" + validated);
@@ -2920,11 +2949,22 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         } catch (SecurityException ignored) {
             // No WRITE_SECURE_SETTINGS grant: the Wi-Fi restart below still wakes the system's time service.
         }
+        if (!valid) {
+            // At boot the clock is the build date until NTP answers (about 8 s here): give that one grace before
+            // the radio restarts, so a normal boot never drops Wi-Fi. A 5 s delay is then safe to choose.
+            if (!wakeTimeRetried) {
+                wakeTimeRetried = true;
+                scheduleWakeCheck(WAKE_CLOCK_GRACE_MS);
+                return;
+            }
+            kickWifiIfAllowed(false);
+            return;
+        }
         // The clock is right but Android has not validated the network yet: one more look before the radio goes
         // down, so an ordinary wake never drops Wi-Fi.
-        if (valid && !wakeTimeRetried) {
+        if (!wakeTimeRetried) {
             wakeTimeRetried = true;
-            handler.postDelayed(wakeTimeCheck, WAKE_FIX_RETRY_MS);
+            scheduleWakeCheck(WAKE_FIX_RETRY_MS);
             return;
         }
         kickWifiIfAllowed(false);
@@ -2938,7 +2978,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      */
     private void probeThenKick(boolean force) {
         long now = SystemClock.elapsedRealtime();
-        if (!force && now - lastProbeAt < WAKE_PROBE_GAP_MS) return;
+        long since = now - lastProbeAt;
+        if (!force && since < WAKE_PROBE_GAP_MS) {
+            Log.i(TAG, "fix_time_on_wake: probe skipped, " + since + " ms since the last one");
+            return;
+        }
+        Log.i(TAG, "fix_time_on_wake: probe start force=" + force + " since=" + since);
         lastProbeAt = now;
         final int token = ++probeToken;
         networkProbeRunning = true;
@@ -2998,7 +3043,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // After a restart, look again once the link is back: this is what clears the orange warning.
             if (recheck) handler.postDelayed(() -> {
                 if (resumed) probeThenKick(true);
-            }, 20_000L);
+            }, 15_000L);
         }
     }
 

@@ -64,8 +64,8 @@ The launcher's own page has these rows, top to bottom:
   request to the weather host then fails, it restarts Wi-Fi once. An app cannot set the clock itself; this
   only clears the way for Android's own sync and for a network Android still calls connected.
 - **Wi-Fi restart after** 5, 10, 15, 20 or 30 seconds (`fix_time_delay_seconds`), how long that check waits;
-  only with Recover time after wake on. Android's own sync needs about 8 seconds after the screen comes on,
-  so 5 can be too early at boot.
+  only with Recover time after wake on. At boot the check gives NTP its own 8-second grace before touching
+  Wi-Fi, so 5 is safe there; it is the wake-from-standby path that acts first.
 - **Wallpaper**: one picture from the theme's collection (or its `wallpaper.jpg`), **None**, or **Theme
   default**. A pick holds that picture and stops the rotation until you choose Theme default, press
   Follow theme, or push the theme again.

@@ -32,7 +32,7 @@ plus the weather line under the clock.
   while it asks the weather host, then a check that fades out, or the triangle when no answer comes.
 - `fix_time_on_wake`: the Mi TV 4S loses the date on every boot (no working RTC battery), which with strict
   Private DNS leaves it "connected" with no internet until its own NTP sync gets through; and after a long
-  standby Android can keep the stale network marked as connected. Home waits `fix_time_delay_seconds` (10 s
+  standby Android can keep the stale network marked as connected. Home waits `fix_time_delay_seconds` (5 s
   in this theme; 5, 10, 15, 20 or 30 in Launcher settings) after a wake or boot, re-arms `auto_time` where
   the install script granted `WRITE_SECURE_SETTINGS`, and if the clock is wrong or a real request to the
   weather host fails (or does not answer within 5 seconds, since DNS ignores socket timeouts), restarts

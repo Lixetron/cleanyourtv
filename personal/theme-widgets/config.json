@@ -18,5 +18,5 @@
   "wifi_status_warnings": true,
   "fade_rows": true,
   "fix_time_on_wake": true,
-  "fix_time_delay_seconds": 10
+  "fix_time_delay_seconds": 5
 }
