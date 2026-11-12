@@ -17,6 +17,7 @@
   "wifi_status_color": true,
   "wifi_status_warnings": true,
   "fade_rows": true,
+  "key_filter": false,
   "fix_time_on_wake": true,
   "fix_time_delay_seconds": 5
 }

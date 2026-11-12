@@ -40,7 +40,12 @@ plus the weather line under the clock.
 - On Home, holding the Xiaomi MI/PatchWall button (the XMRM-007 remote's, `KEYCODE_BUTTON_4`/191) opens the
   Inputs menu; a tap still opens Live TV/last source. The helper runs from `InputKeyService`, which the
   install script now enables (`-InputKeyService`), and the keycode list is `hold_input_keycodes` in
-  `config.xml`.
+  `config.xml`. This TV's theme sets `key_filter: false`, so the helper does not filter keys at all and none
+  of that runs: as soon as any accessibility service filters keys the firmware stops repeating a held volume
+  key (one step per press, and the volume keys never reach the helpers, so `consume_volume_keys` cannot repeat
+  them and `volume_pauses_filter` does not bring the repeat back — both tried on the set, 13 Nov 2026). Stock
+  behaviour — step and accelerate, MI as the firmware sends it — is what the theme asks for. Turn `key_filter`
+  back on to get the remote buttons and lose the volume repeat.
 
 Everything else is upstream. The launcher still has no background services and no polling; the
 network is read only while a weather card or the weather line is on screen.
