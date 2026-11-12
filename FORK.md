@@ -84,8 +84,10 @@ because FairPlay cannot be decrypted.
 ```bash
 git remote add upstream https://github.com/Gathin23/cleanyourtv.git   # already added here
 git fetch upstream
-git merge upstream/main        # on this branch: InputKeyService.java conflicts (this fork's hold_input_keycodes
-                               # alongside upstream's app_keys front: entries); keep both blocks
+git merge upstream/main        # on this branch: themes/README.md conflicts (this fork's hold_input_keycodes
+                               # row beside upstream's rewritten app_keys row); keep both rows. Earlier merges
+                               # also conflicted in InputKeyService.java: keep both the hold block and upstream's
+                               # app_keys front: entries
 ```
 
 ## Publishing this fork
