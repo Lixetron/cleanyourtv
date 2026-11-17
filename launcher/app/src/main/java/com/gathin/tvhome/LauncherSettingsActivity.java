@@ -208,6 +208,8 @@ public final class LauncherSettingsActivity extends Activity {
                 open(new Intent(this, HomeSettingsActivity.class)));
         findViewById(R.id.tvSettingsChoice).setOnClickListener(v ->
                 open(SystemSettings.intent(this, Settings.ACTION_SETTINGS)));
+        ((TextView) findViewById(R.id.buildLine)).setText(getString(R.string.build_line,
+                versionName(), buildDate()));
         refresh();
         if (config.launcherSettingsButton) reorderChoice.requestFocus();
         else columnChoices[Math.max(0, Math.min(columns - 4, 3))].requestFocus();
@@ -350,6 +352,31 @@ public final class LauncherSettingsActivity extends Activity {
             return pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString();
         } catch (PackageManager.NameNotFoundException e) {
             return pkg;
+        }
+    }
+
+    /** The installed version name, for the footer; "?" if the package manager cannot answer. */
+    private String versionName() {
+        try {
+            String name = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            return name == null ? "?" : name;
+        } catch (PackageManager.NameNotFoundException | RuntimeException gone) {
+            return "?";
+        }
+    }
+
+    /**
+     * BUILD_DATE, which Gradle stamps as "2026-11-13", in the TV's own date format: 13.11.2026 for a Russian
+     * TV, 11/13/2026 for an American one, 2026.11.13 where the TV is set to that. The date format preference
+     * is Android's, as the rest of the launcher's dates follow it.
+     */
+    private String buildDate() {
+        try {
+            java.util.Date day = java.util.Date.from(java.time.LocalDate.parse(BuildConfig.BUILD_DATE)
+                    .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant());
+            return android.text.format.DateFormat.getDateFormat(this).format(day);
+        } catch (RuntimeException unreadable) {
+            return BuildConfig.BUILD_DATE;   // a stamp written another way still tells two builds apart
         }
     }
 

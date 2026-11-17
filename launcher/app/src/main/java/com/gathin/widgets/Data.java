@@ -84,7 +84,24 @@ public final class Data {
         } catch (RuntimeException ignored) {
             // Use what was stored.
         }
-        return p.contains("lat") ? new double[] {p.getFloat("lat", 0f), p.getFloat("lon", 0f)} : null;
+        if (p.contains("lat")) return new double[] {p.getFloat("lat", 0f), p.getFloat("lon", 0f)};
+        return configured(c);
+    }
+
+    /**
+     * config.xml latitude/longitude, or null when either is empty or not a number. For a set whose firmware
+     * never reports a location at all (Google TV on a network where Google's network provider delivers no
+     * fix): the cards then still have a place, and a real fix wins over it as soon as one arrives.
+     */
+    public static double[] configured(Context c) {
+        try {
+            String lat = c.getString(com.gathin.tvhome.R.string.latitude).trim();
+            String lon = c.getString(com.gathin.tvhome.R.string.longitude).trim();
+            if (lat.isEmpty() || lon.isEmpty()) return null;
+            return new double[] {Double.parseDouble(lat), Double.parseDouble(lon)};
+        } catch (NumberFormatException | android.content.res.Resources.NotFoundException e) {
+            return null;
+        }
     }
 
     /** The cached weather, or null. */

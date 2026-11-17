@@ -44,16 +44,15 @@ final class HomeWeather {
     /** Fetches a new reading and stores it; returns it, or "" when there is no location or no network. Blocking. */
     static String refresh(Context context) {
         try {
-            if (context.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                    && context.checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                return "";
-            }
             LocationManager lm = context.getSystemService(LocationManager.class);
             Location best = null;
-            if (lm != null) {
-                for (String provider : lm.getProviders(true)) {
-                    Location l = lm.getLastKnownLocation(provider);
-                    if (l != null && (best == null || l.getTime() > best.getTime())) best = l;
+            if (context.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    || context.checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                if (lm != null) {
+                    for (String provider : lm.getProviders(true)) {
+                        Location l = lm.getLastKnownLocation(provider);
+                        if (l != null && (best == null || l.getTime() > best.getTime())) best = l;
+                    }
                 }
             }
             SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
@@ -66,7 +65,12 @@ final class HomeWeather {
                 lat = prefs.getFloat("lat", 0f);
                 lon = prefs.getFloat("lon", 0f);
             } else {
-                return "";
+                // No fix and nothing kept: config.xml latitude/longitude, for a set whose firmware never
+                // reports a location (see widgets.Data.configured).
+                double[] fixed = com.gathin.widgets.Data.configured(context);
+                if (fixed == null) return "";
+                lat = fixed[0];
+                lon = fixed[1];
             }
             String text = fetch(lat, lon);
             prefs.edit().putString("text", text).putLong("at", System.currentTimeMillis()).apply();

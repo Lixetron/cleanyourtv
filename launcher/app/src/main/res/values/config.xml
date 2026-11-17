@@ -502,7 +502,9 @@
     <integer name="sky_intensity">0</integer>
     <!-- Where the TV is, in decimal degrees, so the sky's sunrise and sunset glows follow the real sun
          (computed on the TV, no network). Empty: a fixed temperate day, sunset glow around 19:00.
-         Vilnius: 54.69 and 25.28. -->
+         Vilnius: 54.69 and 25.28. A set whose firmware never reports a location at all (Google TV on a
+         network where Google's network provider delivers no fix) also uses these for the weather and sun
+         cards, until a real fix arrives: see widgets/Data.configured. -->
     <string name="latitude" translatable="false"></string>
     <string name="longitude" translatable="false"></string>
 

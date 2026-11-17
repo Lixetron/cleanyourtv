@@ -198,5 +198,15 @@
             style="@style/SettingsRow"
             android:layout_marginTop="18dp"
             android:text="@string/tv_settings" />
+
+        <!-- The build footer, written by the activity: version name and the date this APK was built.
+             14sp and not a settings row, so the remote skips it and it is not a setting. -->
+        <TextView
+            android:id="@+id/buildLine"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:textColor="#FFACB8C1"
+            android:textSize="14sp" />
     </LinearLayout>
 </ScrollView>
