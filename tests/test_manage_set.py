@@ -17,6 +17,10 @@ from pathlib import Path
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
+# The folders .gitignore keeps out of a checkout: a person's backups, screenshots, notes, traces, bench
+# results and ADB key, plus build output and the CI venv (the walkers' usual skip list).
+IGNORED_DIRS = {".git", "venv", "node_modules", "build", ".gradle", "__pycache__", "shots", "backup", "work",
+                "traces", "bench-results", "adbkey"}
 sys.path.insert(0, str(ROOT / "tools"))
 import manage  # noqa: E402
 
@@ -590,6 +594,10 @@ class SetThemeFolderTest(unittest.TestCase):
         # PROJECT_FOLDERS, or set would rewrite it the way examples/ used to be rewritable.
         shipped = {}
         for path in sorted(ROOT.glob("*/*/config.json")):
+            # The folders .gitignore keeps out - a contributor's notes (work/), backups, screenshots - are not
+            # part of the checkout, and one of them holding a theme of its own is not a folder set must guard.
+            if IGNORED_DIRS.intersection(path.relative_to(ROOT).parts):
+                continue
             shipped.setdefault(path.relative_to(ROOT).parts[0], set()).add(path)
         self.assertGreaterEqual(sum(len(v) for v in shipped.values()), 60, "no config.json files were found")
         self.assertEqual({"examples", "themes", "personal"}, set(shipped), "a folder with a config.json that set does not guard")
